@@ -30,14 +30,14 @@ const roleData = [
   { no: 7, namaRole: "Kepala Sekolah", initial: "KS" },
   { no: 8, namaRole: "Orang Tua", initial: "OT" },
   { no: 9, namaRole: "Pengurus Perpustakaan", initial: "PP" },
-  { no: 10, namaRole: "Peserta Didik", initial: "PD" }
+  { no: 10, namaRole: "Peserta Didik", initial: "PD" },
 ];
 
 export default function ManajemenRole() {
   const navigate = useNavigate();
 
   const handleAddRole = () => {
-    navigate('/manajemen-role/tambah');
+    navigate("/manajemen-role/tambah");
   };
 
   const handleEditRole = (id: number) => {
@@ -70,10 +70,7 @@ export default function ManajemenRole() {
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search"
-                className="pl-10 w-64"
-              />
+              <Input placeholder="Search" className="pl-10 w-64" />
             </div>
           </div>
 
@@ -91,7 +88,10 @@ export default function ManajemenRole() {
                   <TableCell>{role.no}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Badge variant="secondary" className="w-8 h-8 rounded-full flex items-center justify-center p-0">
+                      <Badge
+                        variant="secondary"
+                        className="w-8 h-8 rounded-full flex items-center justify-center p-0"
+                      >
                         {role.initial}
                       </Badge>
                       <span>{role.namaRole}</span>
@@ -102,15 +102,19 @@ export default function ManajemenRole() {
                       <Button variant="ghost" size="icon" className="h-8 w-8">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-8 w-8"
                         onClick={() => handleEditRole(role.no)}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -131,7 +135,11 @@ export default function ManajemenRole() {
               <Button variant="outline" size="sm" disabled>
                 ‹
               </Button>
-              <Button variant="outline" size="sm" className="bg-primary text-primary-foreground">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-primary text-primary-foreground"
+              >
                 1
               </Button>
               <Button variant="outline" size="sm">

@@ -2,11 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom"; // 👈 switch to Data Router
 import { Layout } from "@/components/Layout";
 import Dashboard from "./pages/Dashboard";
 import KlasifikasiSurat from "./pages/KlasifikasiSurat";
-// import Sekolah from "./pages/Sekolah";
 import Agenda from "./pages/Agenda";
 import BukuTamu from "./pages/BukuTamu";
 import DaftarSurvei from "./pages/DaftarSurvei";
@@ -15,137 +14,197 @@ import ManajemenRole from "./pages/ManajemenRole";
 import TambahRole from "./pages/TambahRole";
 import EditRole from "./pages/EditRole";
 import NotFound from "./pages/NotFound";
-import Digitalsignage from "./pages/Digitalsignage";
+import Digitalsignage from "./pages/DigitalSignageOptimized";
 import Siswa from "./pages/Siswa";
 import Guru from "./pages/Guru";
 import Presensi from "./pages/Presensi";
+import PresensiGuru from "./pages/presensi/PresensiGuru";
+import Digitalsignage2 from "./pages/DigitalSignageResposive";
+import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import { ToastContainer } from "react-toastify";
+import Kelas from "./pages/Kelas";
+import Jurusan from "./pages/Jurusan";
+import DaftarPertanyaan from "./pages/DaftarPertanyaan";
+import "react-toastify/dist/ReactToastify.css";
+import Kelas_coba from "./pages/Kelas _coba";
 
 const queryClient = new QueryClient();
+
+const router = createBrowserRouter(
+  [
+    { path: "/", element: <Login /> },
+    { path: "/login", element: <Login /> },
+    { path: "/forgot-password", element: <ForgotPassword /> },
+    { path: "/coba", element: <Kelas_coba /> },
+    {
+      path: "/dashboard",
+      element: (
+        <Layout>
+          <Dashboard />
+        </Layout>
+      ),
+    },
+    {
+      path: "/kelas",
+      element: (
+        <Layout>
+          <Kelas />
+        </Layout>
+      ),
+    },
+    {
+      path: "/jurusan",
+      element: (
+        <Layout>
+          <Jurusan />
+        </Layout>
+      ),
+    },
+    {
+      path: "/siswa",
+      element: (
+        <Layout>
+          <Siswa />
+        </Layout>
+      ),
+    },
+    {
+      path: "/guru",
+      element: (
+        <Layout>
+          <Guru />
+        </Layout>
+      ),
+    },
+    {
+      path: "/presensi",
+      element: (
+        <Layout>
+          <Presensi />
+        </Layout>
+      ),
+    },
+    {
+      path: "/presensi/presensi-guru",
+      element: (
+        <Layout>
+          <PresensiGuru />
+        </Layout>
+      ),
+    },
+    {
+      path: "/klasifikasi-surat",
+      element: (
+        <Layout>
+          <KlasifikasiSurat />
+        </Layout>
+      ),
+    },
+    {
+      path: "/agenda",
+      element: (
+        <Layout>
+          <Agenda />
+        </Layout>
+      ),
+    },
+    {
+      path: "/buku-tamu",
+      element: (
+        <Layout>
+          <BukuTamu />
+        </Layout>
+      ),
+    },
+    {
+      path: "/survei/daftar",
+      element: (
+        <Layout>
+          <DaftarSurvei />
+        </Layout>
+      ),
+    },
+    {
+      path: "/survei/pertanyaan",
+      element: (
+        <Layout>
+          <DaftarPertanyaan />
+        </Layout>
+      ),
+    },
+    {
+      path: "/survei/pertanyaan/:id",
+      element: (
+        <Layout>
+          <DaftarPertanyaan />
+        </Layout>
+      ),
+    },
+    {
+      path: "/survei/hasil",
+      element: (
+        <Layout>
+          <HasilSurvei />
+        </Layout>
+      ),
+    },
+    {
+      path: "/manajemen-role",
+      element: (
+        <Layout>
+          <ManajemenRole />
+        </Layout>
+      ),
+    },
+    {
+      path: "/manajemen-role/tambah",
+      element: (
+        <Layout>
+          <TambahRole />
+        </Layout>
+      ),
+    },
+    {
+      path: "/manajemen-role/edit/:id",
+      element: (
+        <Layout>
+          <EditRole />
+        </Layout>
+      ),
+    },
+    { path: "/guest-visits/landing/responsive", element: <Digitalsignage2 /> },
+    { path: "/guest-visits/landing", element: <Digitalsignage /> },
+    { path: "*", element: <NotFound /> },
+  ],
+  {
+    basename: "/tu",
+    future: {
+      v7_relativeSplatPath: true,
+      // @ts-expect-error v7 flag not in types yet
+      v7_startTransition: true,
+    },
+  }
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Layout>
-                <Dashboard />
-              </Layout>
-            }
-          />
-          <Route
-            path="/presensi"
-            element={
-              <Layout>
-                <Presensi />
-              </Layout>
-            }
-          />
-          <Route
-            path="/klasifikasi-surat"
-            element={
-              <Layout>
-                <KlasifikasiSurat />
-              </Layout>
-            }
-          />
-          {/* <Route
-            path="/sekolah"
-            element={
-              <Layout>
-                <Sekolah />
-              </Layout>
-            }
-          /> */}
-          <Route
-            path="/agenda"
-            element={
-              <Layout>
-                <Agenda />
-              </Layout>
-            }
-          />
-          <Route
-            path="/buku-tamu"
-            element={
-              <Layout>
-                <BukuTamu />
-              </Layout>
-            }
-          />
-          <Route
-            path="/survei/daftar"
-            element={
-              <Layout>
-                <DaftarSurvei />
-              </Layout>
-            }
-          />
-          <Route
-            path="/survei/hasil"
-            element={
-              <Layout>
-                <HasilSurvei />
-              </Layout>
-            }
-          />
-          <Route
-            path="/manajemen-role"
-            element={
-              <Layout>
-                <ManajemenRole />
-              </Layout>
-            }
-          />
-          <Route
-            path="/manajemen-role/tambah"
-            element={
-              <Layout>
-                <TambahRole />
-              </Layout>
-            }
-          />
-          <Route
-            path="/manajemen-role/edit/:id"
-            element={
-              <Layout>
-                <EditRole />
-              </Layout>
-            }
-          />
-          <Route
-            path="/manajemen-role/edit/:id"
-            element={
-              <Layout>
-                <EditRole />
-              </Layout>
-            }
-          />
-          <Route
-            path="/siswa"
-            element={
-              <Layout>
-                <Siswa />
-              </Layout>
-            }
-          />
-          <Route
-            path="/guru"
-            element={
-              <Layout>
-                <Guru />
-              </Layout>
-            }
-          />
-          <Route path="/guest-visits/landing" element={<Digitalsignage />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <RouterProvider router={router} />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </TooltipProvider>
   </QueryClientProvider>
 );

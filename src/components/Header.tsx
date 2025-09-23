@@ -31,24 +31,16 @@ export function Header() {
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Super Admin</span>
-          <div className="relative">
-            <Badge variant="destructive" className="text-xs">SAMPLE</Badge>
-          </div>
+          <span>Admin</span>
         </div>
         
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs bg-orange">
-            
-          </Badge>
-        </Button>
+        
 
-        <Button variant="ghost" size="icon">
+        {/* <Button variant="ghost" size="icon">
           <Settings className="h-5 w-5" />
-        </Button>
+        </Button> */}
 
-        <DropdownMenu>
+        {/* <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium">
@@ -62,7 +54,7 @@ export function Header() {
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuItem>Logout</DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu> */}
       </div>
     </header>
   );

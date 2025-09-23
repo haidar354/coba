@@ -1,14 +1,21 @@
 import { useState } from "react";
-import { 
-  LayoutDashboard, 
-  GraduationCap, 
-  FileText, 
-  Calendar, 
-  BookOpen, 
+import {
+  LayoutDashboard,
+  GraduationCap,
+  Lectern,
+  FileText,
+  Calendar,
+  BookOpen,
   ClipboardList,
   Users,
-  ChevronRight
+  ChevronRight,
+  School,
+  // BookOpen,
+  Library,
+  Edit,
+  Clock,
 } from "lucide-react";
+import educationIllustration from "../assets/logo-web-smk4-Photoroom.png";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -27,24 +34,27 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Presensi", url: "/presensi", icon: GraduationCap },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Siswa", url: "/siswa", icon: GraduationCap },
+  { title: "Guru", url: "/guru", icon: Lectern },
+  { title: "Presensi Siswa", url: "/presensi", icon: Clock },
+  { title: "Presensi Guru", url: "/presensi/presensi-guru", icon: Edit },
+  { title: "Kelas", url: "/kelas", icon: Library },
+  { title: "Jurusan", url: "/jurusan", icon: School },
   { title: "Klasifikasi Surat", url: "/klasifikasi-surat", icon: FileText },
   { title: "Agenda", url: "/agenda", icon: Calendar },
   { title: "Buku Tamu", url: "/buku-tamu", icon: BookOpen },
-  
 
   {
     title: "Survei",
     icon: ClipboardList,
     submenu: [
       { title: "Daftar Survei", url: "/survei/daftar" },
+      { title: "Daftar Pertanyaan Survei", url: "/survei/pertanyaan" },
       { title: "Hasil Survei", url: "/survei/hasil" },
-    ]
+    ],
   },
   { title: "Manajemen Role", url: "/manajemen-role", icon: Users },
-  { title: "Siswa", url: "/siswa", icon: GraduationCap },
-  { title: "Guru", url: "/guru", icon: GraduationCap },
 ];
 
 export function AppSidebar() {
@@ -62,13 +72,13 @@ export function AppSidebar() {
     <Sidebar className="bg-blue-sidebar border-r border-sidebar-border">
       <SidebarContent>
         <div className="p-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">P</span>
-            </div>
-            {!collapsed && (
-              <span className="font-bold text-lg text-sidebar-foreground">Pasinaon</span>
-            )}
+          <div className="flex items-center gap-3 max-w-50 max-h-50">
+            <img
+              src={educationIllustration}
+              alt=""
+              className="object-contain max-w-40 max-h-40"
+              crossOrigin="anonymous"
+            />
           </div>
         </div>
 
@@ -83,7 +93,9 @@ export function AppSidebar() {
                   {item.submenu ? (
                     <Collapsible
                       open={openSubmenu === item.title}
-                      onOpenChange={(open) => setOpenSubmenu(open ? item.title : null)}
+                      onOpenChange={(open) =>
+                        setOpenSubmenu(open ? item.title : null)
+                      }
                     >
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton className="w-full justify-between hover:bg-sidebar-accent/50">
@@ -92,10 +104,10 @@ export function AppSidebar() {
                             {!collapsed && <span>{item.title}</span>}
                           </div>
                           {!collapsed && (
-                            <ChevronRight 
+                            <ChevronRight
                               className={`h-4 w-4 transition-transform ${
-                                openSubmenu === item.title ? 'rotate-90' : ''
-                              }`} 
+                                openSubmenu === item.title ? "rotate-90" : ""
+                              }`}
                             />
                           )}
                         </SidebarMenuButton>
@@ -106,7 +118,10 @@ export function AppSidebar() {
                             {item.submenu.map((subItem) => (
                               <SidebarMenuSubItem key={subItem.title}>
                                 <SidebarMenuSubButton asChild>
-                                  <NavLink to={subItem.url} className={getNavCls}>
+                                  <NavLink
+                                    to={subItem.url}
+                                    className={getNavCls}
+                                  >
                                     <span>{subItem.title}</span>
                                   </NavLink>
                                 </SidebarMenuSubButton>
