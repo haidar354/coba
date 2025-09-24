@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import * as XLSX from 'xlsx';
 import {
   Plus,
   Download,
   Upload,
   Search,
+  Edit,
   Trash2,
   ChevronLeft,
   ChevronRight,
   FileX,
   CheckCircle,
   AlertCircle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,105 +46,218 @@ import api from "@/utils/axios";
 // API functions using your backend
 const teachersApi = {
   async getTeachers(params) {
-    const response = await api.get("/api//teachers", {
-      params: {
-        page: params.page,
-        limit: params.limit,
-        search: params.search,
-        sortBy: "created_at",
-        sortOrder: "desc",
-      },
-    });
-    return response;
+    try {
+      const response = await api.get(
+        "/api/attendance?id_role=3&include_relations=true",
+        {
+          params: {
+            include_relations: true,
+            page: params.page || 1,
+            limit: params.limit || 10,
+            search: params.search || "",
+            sortBy: "created_at",
+            sortOrder: "desc",
+          },
+        }
+      );
+      return response.data ? { data: response.data, pagination: JSON.parse(response.headers["x-pagination"] || '{}') } : { data: [], pagination: { current_page: 1, total_pages: 1, total_items: 0, items_per_page: params.limit || 10, has_next_page: false, has_prev_page: false } };
+    } catch (error) {
+      console.error("API Error in getTeachers:", error);
+      throw new Error(error.response?.data?.message || "Gagal memuat data guru");
+    }
   },
 
   async uploadFile(file) {
-    const formData = new FormData();
-    formData.append("file", file);
+    try {
+      if (!file) throw new Error("No file selected");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder_name", "data_presensi/guru");
 
-    const response = await api.post("/api//teachers/bulk", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-    return response;
+      const response = await api.post("/api/attendance?id_role=3&include_relations=true/bulk", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.status === 201 ? { success: true } : { success: false };
+    } catch (error) {
+      console.error("API Error in uploadFile:", error);
+      throw new Error("File gagal diupload");
+    }
   },
 
-  async downloadData(format, startDate, endDate) {
-    const params = { format };
-    if (startDate) params.startDate = startDate;
-    if (endDate) params.endDate = endDate;
+  async downloadData(format, start_date, end_date) {
+    try {
+      const params = { format };
+      if (start_date) params.start_date = start_date;
+      if (end_date) params.end_date = end_date;
 
-    const response = await api.get("/api//teachers/export", {
-      params,
-      responseType: "blob",
-    });
+      const response = await api.get(
+        "/api/attendance?id_role=3&include_relations=true/export",
+        {
+          params,
+          responseType: "blob",
+        }
+      );
 
-    // Create download link for blob response
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute(
-      "download",
-      `data-guru-${new Date().toISOString().split("T")[0]}.${format}`
-    );
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `data-guru-${new Date().toISOString().split("T")[0]}.${format}`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
 
-    return { success: true };
+      return { success: true };
+    } catch (error) {
+      console.error("API Error in downloadData:", error);
+      throw new Error("Gagal mengunduh data");
+    }
   },
 
   async createTeacher(teacherData) {
-    // Transform data to match your backend structure
-    const payload = {
-      id_user: null, // You'll need to handle user creation first
-      id_class: null, // You'll need to get class ID
-      nip: teacherData.nip,
-      // Additional teacher data can be added here
-      userData: {
-        full_name: teacherData.nama,
-        id_role: 3, // Teacher role ID
-        data: {
-          phone: teacherData.phone || "",
-          email: teacherData.email || "",
+    try {
+      if (!teacherData.nama || !teacherData.nip || !teacherData.status) throw new Error("Missing required fields");
+      const payload = {
+        id_user: null,
+        id_class: null,
+        nip: teacherData.nip,
+        userData: {
+          full_name: teacherData.nama,
+          id_role: 3,
+          data: {
+            phone: teacherData.phone || "",
+            email: teacherData.email || "",
+          },
         },
-      },
-    };
+      };
 
-    const response = await api.post("/api//teachers", payload);
-    return response;
+      const response = await api.post(
+        "/api/attendance?id_role=3&include_relations=true",
+        payload
+      );
+      return response.data ? { success: true, data: response.data } : { success: false };
+    } catch (error) {
+      console.error("API Error in createTeacher:", error);
+      throw new Error(error.response?.data?.message || "Gagal menambahkan data guru");
+    }
+  },
+
+  async updateTeacher(id, teacherData) {
+    try {
+      if (!teacherData.nama || !teacherData.nip || !teacherData.status) throw new Error("Missing required fields");
+      const payload = {
+        nip: teacherData.nip,
+        userData: {
+          full_name: teacherData.nama,
+          id_role: 3,
+          data: {
+            phone: teacherData.phone || "",
+            email: teacherData.email || "",
+          },
+        },
+      };
+
+      const response = await api.put(
+        `/api/attendance?id_role=3&include_relations=true/${id}`,
+        payload
+      );
+      return response.data ? { success: true, data: response.data } : { success: false };
+    } catch (error) {
+      console.error("API Error in updateTeacher:", error);
+      throw new Error(error.response?.data?.message || "Gagal memperbarui data guru");
+    }
   },
 
   async deleteTeacher(id) {
-    const response = await api.delete(`/api//teachers/${id}`);
-    return response;
+    try {
+      if (!id) throw new Error("Invalid teacher ID");
+      const response = await api.delete(
+        `/api/attendance/${id}`
+      );
+      return response.status === 200 ? { success: true } : { success: false };
+    } catch (error) {
+      console.error("API Error in deleteTeacher:", error);
+      throw new Error("Gagal menghapus data guru");
+    }
   },
 
   async searchTeachers(query, limit = 10) {
-    const response = await api.get("/api//teachers/search", {
-      params: { q: query, limit },
-    });
-    return response;
+    try {
+      const response = await api.get(
+        "/api/attendance?id_role=3&include_relations=true/search",
+        {
+          params: { q: query || "", limit },
+        }
+      );
+      return response.data ? { data: response.data } : { data: [] };
+    } catch (error) {
+      console.error("API Error in searchTeachers:", error);
+      throw new Error("Gagal mencari data guru");
+    }
   },
 
   async getTeachersByClass(classId, page = 1, limit = 10) {
-    const response = await api.get(`/api//teachers/class/${classId}`, {
-      params: { page, limit },
-    });
-    return response;
+    try {
+      if (!classId) throw new Error("Invalid class ID");
+      const response = await api.get(
+        `/api/attendance?id_role=3&include_relations=true/class/${classId}`,
+        {
+          params: { page, limit },
+        }
+      );
+      return response.data ? { data: response.data, pagination: JSON.parse(response.headers["x-pagination"] || '{}') } : { data: [], pagination: { current_page: page, total_pages: 1, total_items: 0, items_per_page: limit, has_next_page: false, has_prev_page: false } };
+    } catch (error) {
+      console.error("API Error in getTeachersByClass:", error);
+      throw new Error("Gagal memuat data guru berdasarkan kelas");
+    }
   },
 
   async getTeachersStats() {
-    const response = await api.get("/api//teachers/stats/classes");
-    return response;
+    try {
+      const response = await api.get(
+        "/api/attendance?id_role=3&include_relations=true/stats/classes"
+      );
+      return response.data ? { data: response.data } : { data: {} };
+    } catch (error) {
+      console.error("API Error in getTeachersStats:", error);
+      throw new Error("Gagal memuat statistik guru");
+    }
   },
 
   async restoreTeacher(id) {
-    const response = await api.post(`/api//teachers/${id}/restore`);
-    return response;
+    try {
+      if (!id) throw new Error("Invalid teacher ID");
+      const response = await api.post(
+        `/api/attendance?id_role=3&include_relations=true/${id}/restore`
+      );
+      return response.status === 200 ? { success: true } : { success: false };
+    } catch (error) {
+      console.error("API Error in restoreTeacher:", error);
+      throw new Error("Gagal memulihkan data guru");
+    }
   },
+};
+
+// Custom hook for debounced value
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
 };
 
 const EnhancedPresensiGuru = () => {
@@ -160,13 +276,19 @@ const EnhancedPresensiGuru = () => {
   // Filter states
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // State untuk input search
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSearchFocused, setIsSearchFocused] = useState(false); // State untuk focus search
+
+  // Debounced search term - akan trigger fetch setelah user berhenti mengetik selama 500ms
+  const debouncedSearchTerm = useDebounce(searchInput, 500);
 
   // Modal states
   const [modals, setModals] = useState({
     upload: false,
     download: false,
     addData: false,
+    editData: false,
   });
 
   // Form states
@@ -184,9 +306,10 @@ const EnhancedPresensiGuru = () => {
     email: "",
     phone: "",
   });
+  const [editingTeacher, setEditingTeacher] = useState(null);
 
   // Alert state
-  const [alert, setAlert] = useState({ show: false, type: "", message: "" });
+  const [alert1, setAlert1] = useState({ show: false, type: "", message: "" });
 
   // Fetch teachers data
   const fetchTeachers = async () => {
@@ -195,46 +318,32 @@ const EnhancedPresensiGuru = () => {
       const params = {
         page: currentPage,
         limit: entriesPerPage,
-        search: searchTerm,
+        search: debouncedSearchTerm.length >= 3 ? debouncedSearchTerm.toLowerCase() : "",
       };
+      const { data, pagination: pag } = await teachersApi.getTeachers(params);
 
-      const response = await teachersApi.getTeachers(params);
-
-      // Handle response structure based on your backend
-      if (response.data) {
-        setTeachers(response.data);
-        setPagination(
-          JSON.parse(response.headers["x-pagination"]) || {
-            current_page: currentPage,
-            total_pages: 1,
-            total_items: response.data.length,
-            items_per_page: entriesPerPage,
-            has_next_page: false,
-            has_prev_page: false,
-          }
-        );
-      } else {
-        setTeachers([]);
-        setPagination({
-          current_page: 1,
-          total_pages: 1,
-          total_items: 0,
-          items_per_page: entriesPerPage,
-          has_next_page: false,
-          has_prev_page: false,
-        });
-      }
+      setTeachers(data || []);
+      setPagination(pag || {
+        current_page: currentPage,
+        total_pages: 1,
+        total_items: data?.length || 0,
+        items_per_page: entriesPerPage,
+        has_next_page: false,
+        has_prev_page: false,
+      });
     } catch (error) {
       console.error("Error fetching teachers:", error);
-      showAlert(
-        "error",
-        error.response?.data?.message || "Gagal memuat data guru"
-      );
+      showAlert("error", error.message || "Gagal memuat data guru");
       setTeachers([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Effect untuk update searchTerm ketika debouncedSearchTerm berubah
+  useEffect(() => {
+    setSearchTerm(debouncedSearchTerm.toLowerCase());
+  }, [debouncedSearchTerm]);
 
   // Effects
   useEffect(() => {
@@ -250,8 +359,8 @@ const EnhancedPresensiGuru = () => {
 
   // Helper functions
   const showAlert = (type, message) => {
-    setAlert({ show: true, type, message });
-    setTimeout(() => setAlert({ show: false, type: "", message: "" }), 5000);
+    setAlert1({ show: true, type, message });
+    setTimeout(() => setAlert1({ show: false, type: "", message: "" }), 5000);
   };
 
   const closeModal = (modalName) => {
@@ -268,6 +377,9 @@ const EnhancedPresensiGuru = () => {
         phone: "",
       });
     }
+    if (modalName === "editData") {
+      setEditingTeacher(null);
+    }
     if (modalName === "download") {
       setDateRange({ startDate: "", endDate: "" });
       setDownloadFormat("xlsx");
@@ -279,8 +391,25 @@ const EnhancedPresensiGuru = () => {
   };
 
   // Handle functions
-  const handleSearch = (value) => {
-    setSearchTerm(value);
+  const handleSearchInputChange = (value) => {
+    setSearchInput(value.toLowerCase()); // Update input value to lowercase
+  };
+
+  const handleSearchFocus = () => {
+    setIsSearchFocused(true);
+  };
+
+  const handleSearchBlur = () => {
+    // Delay blur untuk memungkinkan clear button diklik
+    setTimeout(() => {
+      setIsSearchFocused(false);
+    }, 100);
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput("");
+    setSearchTerm("");
+    setCurrentPage(1);
   };
 
   const handleEntriesChange = (value) => {
@@ -295,64 +424,316 @@ const EnhancedPresensiGuru = () => {
 
   const handleUpload = async () => {
     if (!uploadFile) {
-      showAlert("error", "Silakan pilih file terlebih dahulu");
+      showAlert("error", "Silakan pilih file untuk diupload");
       return;
     }
 
     setLoading(true);
+
     try {
       const response = await teachersApi.uploadFile(uploadFile);
-
-      // Handle response based on your backend structure
-      const responseData = response.data;
-
-      if (responseData.success && responseData.data) {
-        const { created, errors, summary } = responseData.data;
-
-        if (summary.successful > 0) {
-          showAlert(
-            "success",
-            `${summary.successful} guru berhasil ditambahkan`
-          );
-          fetchTeachers(); // Refresh data
-          closeModal("upload");
-        }
-
-        if (errors && errors.length > 0) {
-          showAlert("error", `${errors.length} data gagal diproses`);
-        }
-      } else {
-        showAlert("success", responseData.message || "File berhasil diupload");
+      if (response.success) {
+        showAlert("success", "File berhasil diupload");
         fetchTeachers();
         closeModal("upload");
       }
     } catch (error) {
-      console.error("Upload error:", error);
-      showAlert(
-        "error",
-        error.response?.data?.message || "Gagal mengupload file"
-      );
+      showAlert("error", error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleDownloadTemplate = () => {
+    // Create a temporary link element to trigger download
+    const link = document.createElement("a");
+    link.href = "/tu/file_template/Template%20Presensi%20Guru%20-%20Harian.xlsx";
+    link.download = "template_presensi_guru.xlsx";
+    link.target = "_blank";
+
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleDownload = async () => {
+    // Validate date range
+    if (dateRange.startDate && dateRange.endDate) {
+      const start = new Date(dateRange.startDate);
+      const end = new Date(dateRange.endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        showAlert("error", "Tanggal mulai atau tanggal akhir tidak valid");
+        return;
+      }
+      if (end < start) {
+        showAlert("error", "Tanggal akhir tidak boleh sebelum tanggal mulai");
+        return;
+      }
+    }
+
     setLoading(true);
+    const fetchAllTeachersData = async () => {
+      try {
+        let allTeachers = [];
+        let page = 1;
+        const limit = 100;
+        const params = {
+          include_relations: true,
+          limit,
+        };
+        if (dateRange.startDate) params.start_date = dateRange.startDate;
+        if (dateRange.endDate) params.end_date = dateRange.endDate;
+
+        while (true) {
+          const response = await api.get(
+            "/api/attendance?id_role=3&include_relations=true",
+            { params: { ...params, page } }
+          );
+
+          let teachersData = [];
+          if (Array.isArray(response.data)) {
+            teachersData = response.data;
+          } else if (response.data && Array.isArray(response.data.data)) {
+            teachersData = response.data.data;
+          } else if (response.data && Array.isArray(response.data)) {
+            teachersData = response.data;
+          }
+
+          allTeachers = [...allTeachers, ...teachersData];
+
+          const paginationHeader = response.headers["x-pagination"];
+          if (paginationHeader) {
+            try {
+              const pag = JSON.parse(paginationHeader);
+              if (!pag.has_next_page) break;
+              page = pag.current_page + 1;
+            } catch (e) {
+              break;
+            }
+          } else {
+            break;
+          }
+        }
+
+        return allTeachers;
+      } catch (error) {
+        console.error("Error fetching teachers data:", error);
+        throw error;
+      }
+    };
+
+    const generateTeacherExcelFile = (teachersData) => {
+      try {
+        if (
+          !teachersData ||
+          !Array.isArray(teachersData) ||
+          teachersData.length === 0
+        ) {
+          throw new Error("Data guru tidak valid atau kosong");
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        const excelData = teachersData.map((teacher, index) => {
+          if (!teacher || typeof teacher !== "object") {
+            console.warn(`Data guru pada index ${index} tidak valid:`, teacher);
+            return {
+              NO: index + 1,
+              NAMA: "Data tidak valid",
+              NIP: "N/A",
+              EMAIL: "N/A",
+              PHONE: "N/A",
+              KELAS: "N/A",
+              TANGGAL_DIBUAT: "N/A",
+            };
+          }
+
+          return {
+            NO: index + 1,
+            NAMA: teacher.user?.full_name || "N/A",
+            NIP: teacher.nip || teacher.user?.data?.nip || "N/A",
+            EMAIL: teacher.user?.data?.email || "N/A",
+            PHONE: teacher.user?.data?.phone || "N/A",
+            KELAS:
+              teacher.class?.name || teacher.user?.data?.id_class
+                ? `Kelas ${teacher.user.data.id_class}`
+                : "Tidak ada kelas",
+            TANGGAL_DIBUAT: teacher.created_at
+              ? (() => {
+                  try {
+                    return new Date(teacher.created_at).toLocaleDateString(
+                      "id-ID"
+                    );
+                  } catch (dateError) {
+                    console.warn(
+                      `Error parsing date for teacher ${index}:`,
+                      dateError
+                    );
+                    return "N/A";
+                  }
+                })()
+              : "N/A",
+          };
+        });
+
+        const ws = XLSX.utils.json_to_sheet([]);
+
+        const colWidths = [
+          { wch: 5 }, // NO
+          { wch: 25 }, // NAMA
+          { wch: 15 }, // NIP
+          { wch: 25 }, // EMAIL
+          { wch: 15 }, // PHONE
+          { wch: 20 }, // KELAS
+          { wch: 15 }, // TANGGAL_DIBUAT
+        ];
+        ws["!cols"] = colWidths;
+
+        XLSX.utils.sheet_add_aoa(ws, [["DATA GURU"]], { origin: "A1" });
+
+        XLSX.utils.sheet_add_aoa(ws, [[""]], { origin: "A2" });
+
+        const headers = [
+          "NO",
+          "NAMA",
+          "NIP",
+          "EMAIL",
+          "TELEPON",
+          "KELAS",
+          "TANGGAL DIBUAT",
+        ];
+        XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A3" });
+
+        const dataRows = excelData.map((row) => [
+          row.NO,
+          row.NAMA,
+          row.NIP,
+          row.EMAIL,
+          row.PHONE,
+          row.KELAS,
+          row.TANGGAL_DIBUAT,
+        ]);
+
+        XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: "A4" });
+
+        const range = XLSX.utils.encode_range({
+          s: { c: 0, r: 0 },
+          e: { c: 6, r: 2 + excelData.length },
+        });
+        ws["!ref"] = range;
+
+        ws["!merges"] = [
+          {
+            s: { r: 0, c: 0 },
+            e: { r: 0, c: 6 },
+          },
+        ];
+
+        const titleCell = "A1";
+        if (!ws[titleCell]) ws[titleCell] = { v: "DATA GURU", t: "s" };
+        ws[titleCell].s = {
+          font: { bold: true, sz: 16 },
+          alignment: { horizontal: "center", vertical: "center" },
+          fill: { fgColor: { rgb: "CCCCCC" } },
+        };
+
+        headers.forEach((header, colIndex) => {
+          const cellAddress = XLSX.utils.encode_cell({
+            r: 2,
+            c: colIndex,
+          });
+          if (!ws[cellAddress]) {
+            ws[cellAddress] = { v: header, t: "s" };
+          }
+          ws[cellAddress].s = {
+            font: { bold: true },
+            fill: { fgColor: { rgb: "E6E6E6" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thin" },
+              bottom: { style: "thin" },
+              left: { style: "thin" },
+              right: { style: "thin" },
+            },
+          };
+        });
+
+        dataRows.forEach((row, rowIndex) => {
+          row.forEach((cellValue, colIndex) => {
+            const cellAddress = XLSX.utils.encode_cell({
+              r: 3 + rowIndex,
+              c: colIndex,
+            });
+            if (ws[cellAddress]) {
+              ws[cellAddress].s = {
+                border: {
+                  top: { style: "thin" },
+                  bottom: { style: "thin" },
+                  left: { style: "thin" },
+                  right: { style: "thin" },
+                },
+                alignment:
+                  colIndex === 0
+                    ? { horizontal: "center" }
+                    : { horizontal: "left" },
+              };
+            }
+          });
+        });
+
+        XLSX.utils.book_append_sheet(wb, ws, "Data Guru");
+
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        const dateStr = `${year}-${month}-${day}`;
+        const filename = `Data_Guru_${dateStr}.xlsx`;
+
+        XLSX.writeFile(wb, filename);
+
+        console.log(`File Excel berhasil dibuat: ${filename}`);
+        return filename;
+      } catch (error) {
+        console.error("Detailed error in generateTeacherExcelFile:", error);
+
+        let errorMessage = "Gagal membuat file Excel";
+
+        if (error.message.includes("XLSX")) {
+          errorMessage =
+            "Library XLSX tidak tersedia. Pastikan SheetJS sudah dimuat.";
+        } else if (error.message.includes("Data guru")) {
+          errorMessage = "Data guru tidak valid atau kosong";
+        } else if (error.message.includes("writeFile")) {
+          errorMessage =
+            "Gagal menyimpan file. Coba tutup file Excel yang sedang terbuka.";
+        } else if (error.stack) {
+          console.error("Stack trace:", error.stack);
+        }
+
+        throw new Error(errorMessage);
+      }
+    };
+
+    // Function untuk menjalankan export
     try {
-      await teachersApi.downloadData(
-        downloadFormat,
-        dateRange.startDate,
-        dateRange.endDate
-      );
-      showAlert("success", "File berhasil didownload");
-      closeModal("download");
+      setLoading(true);
+
+      // Fetch data guru
+      const teachersData = await fetchAllTeachersData();
+
+      if (!teachersData || teachersData.length === 0) {
+        throw new Error("Tidak ada data guru untuk diekspor");
+      }
+
+      // Generate Excel file
+      const filename = generateTeacherExcelFile(teachersData);
+
+      showAlert("success", `File ${filename} berhasil diunduh`);
     } catch (error) {
-      console.error("Download error:", error);
-      showAlert(
-        "error",
-        error.response?.data?.message || "Gagal mendownload file"
-      );
+      console.error("Error exporting teachers to Excel:", error);
+      showAlert("error", error.message || "Gagal mengunduh data");
     } finally {
       setLoading(false);
     }
@@ -368,17 +749,50 @@ const EnhancedPresensiGuru = () => {
     try {
       const response = await teachersApi.createTeacher(newTeacher);
 
-      if (response.data) {
+      if (response.success) {
         showAlert("success", "Data guru berhasil ditambahkan");
         fetchTeachers(); // Refresh data
         closeModal("addData");
       }
     } catch (error) {
-      console.error("Create teacher error:", error);
-      showAlert(
-        "error",
-        error.response?.data?.message || "Gagal menambahkan data guru"
-      );
+      console.error("Add teacher error:", error);
+      showAlert("error", error.message || "Gagal menambahkan data guru");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditModal = (teacher) => {
+    setEditingTeacher({
+      id: teacher.id,
+      nama: teacher.user?.full_name || "",
+      nip: teacher.nip || "",
+      status: teacher.status || "",
+      keterangan: teacher.keterangan || "",
+      email: teacher.user?.data?.email || "",
+      phone: teacher.user?.data?.phone || "",
+    });
+    openModal("editData");
+  };
+
+  const handleUpdateTeacher = async () => {
+    if (!editingTeacher.nama || !editingTeacher.nip || !editingTeacher.status) {
+      showAlert("error", "Silakan lengkapi semua field yang wajib");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await teachersApi.updateTeacher(editingTeacher.id, editingTeacher);
+
+      if (response.success) {
+        showAlert("success", "Data guru berhasil diperbarui");
+        fetchTeachers(); // Refresh data
+        closeModal("editData");
+      }
+    } catch (error) {
+      console.error("Update teacher error:", error);
+      showAlert("error", error.message || "Gagal memperbarui data guru");
     } finally {
       setLoading(false);
     }
@@ -391,39 +805,39 @@ const EnhancedPresensiGuru = () => {
     try {
       const response = await teachersApi.deleteTeacher(id);
 
-      if (response.data || response.status === 200) {
+      if (response.success) {
         showAlert("success", "Data guru berhasil dihapus");
         fetchTeachers(); // Refresh data
       }
     } catch (error) {
       console.error("Delete teacher error:", error);
-      showAlert(
-        "error",
-        error.response?.data?.message || "Gagal menghapus data guru"
-      );
+      showAlert("error", error.message || "Gagal menghapus data guru");
     } finally {
       setLoading(false);
     }
   };
 
   const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case "hadir":
-        return "text-green-600 bg-green-50 border border-green-200";
-      case "izin":
-        return "text-blue-600 bg-blue-50 border border-blue-200";
-      case "sakit":
-        return "text-orange-600 bg-orange-50 border border-orange-200";
-      case "alpha":
-        return "text-red-600 bg-red-50 border border-red-200";
-      case "terlambat":
-        return "text-yellow-600 bg-yellow-50 border border-yellow-200";
-      case "cuti":
-        return "text-purple-600 bg-purple-50 border border-purple-200";
-      case "dinas":
-        return "text-indigo-600 bg-indigo-50 border border-indigo-200";
+    // Convert status to string and handle non-string cases
+    const statusString = typeof status === 'string' ? status.toLowerCase() : '';
+    
+    switch (statusString) {
+      case 'hadir':
+        return 'text-green-600 bg-green-50 border border-green-200';
+      case 'izin':
+        return 'text-blue-600 bg-blue-50 border border-blue-200';
+      case 'sakit':
+        return 'text-orange-600 bg-orange-50 border border-orange-200';
+      case 'alpha':
+        return 'text-red-600 bg-red-50 border border-red-200';
+      case 'terlambat':
+        return 'text-yellow-600 bg-yellow-50 border border-yellow-200';
+      case 'cuti':
+        return 'text-purple-600 bg-purple-50 border border-purple-200';
+      case 'dinas':
+        return 'text-indigo-600 bg-indigo-50 border border-indigo-200';
       default:
-        return "text-gray-600 bg-gray-50 border border-gray-200";
+        return 'text-gray-600 bg-gray-50 border border-gray-200';
     }
   };
 
@@ -462,25 +876,25 @@ const EnhancedPresensiGuru = () => {
   return (
     <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
       {/* Alert */}
-      {alert.show && (
+      {alert1.show && (
         <Alert
           className={`mb-4 ${
-            alert.type === "error"
+            alert1.type === "error"
               ? "border-red-200 bg-red-50"
               : "border-green-200 bg-green-50"
           }`}
         >
-          {alert.type === "error" ? (
+          {alert1.type === "error" ? (
             <AlertCircle className="h-4 w-4 text-red-600" />
           ) : (
             <CheckCircle className="h-4 w-4 text-green-600" />
           )}
           <AlertDescription
             className={
-              alert.type === "error" ? "text-red-700" : "text-green-700"
+              alert1.type === "error" ? "text-red-700" : "text-green-700"
             }
           >
-            {alert.message}
+            {alert1.message}
           </AlertDescription>
         </Alert>
       )}
@@ -553,11 +967,31 @@ const EnhancedPresensiGuru = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Cari nama atau NIP..."
-                className="pl-10 w-64 border-gray-300 focus:border-blue-500"
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-                disabled={loading}
+                className="pl-10 pr-10 w-64 border-gray-300 focus:border-blue-500"
+                value={searchInput} // Menggunakan searchInput untuk display
+                onChange={(e) => handleSearchInputChange(e.target.value)}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
               />
+
+              {/* Clear button - muncul ketika ada input atau sedang focus */}
+              {(searchInput || isSearchFocused) && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  tabIndex={-1}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+
+              {/* Loading indicator saat sedang search */}
+              {searchInput !== searchTerm && searchInput && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -625,10 +1059,10 @@ const EnhancedPresensiGuru = () => {
                           1}
                       </TableCell>
                       <TableCell className="font-medium text-gray-900">
-                        {teacher.user?.full_name || teacher.nama}
+                        {teacher.user?.full_name || teacher.nama || "-"}
                       </TableCell>
                       <TableCell className="font-mono text-sm text-gray-600">
-                        {teacher.nip}
+                        {teacher.nip || "-"}
                       </TableCell>
                       <TableCell className="text-sm text-gray-600">
                         {teacher.class?.grade || "-"}
@@ -646,6 +1080,15 @@ const EnhancedPresensiGuru = () => {
                         {teacher.keterangan || "-"}
                       </TableCell>
                       <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => openEditModal(teacher)}
+                          disabled={loading}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -765,10 +1208,13 @@ const EnhancedPresensiGuru = () => {
               <h4 className="font-medium text-sm mb-2 text-blue-800">
                 Format Template:
               </h4>
-              <p className="text-xs text-blue-600">
-                Pastikan file memiliki kolom: Nama Lengkap, NIP, Kelas, Jurusan,
-                Subkelas, Tahun Ajaran
-              </p>
+              <button
+                onClick={handleDownloadTemplate}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Download size={16} />
+                Download Template Excel
+              </button>
             </div>
 
             {uploadFile && (
@@ -825,20 +1271,18 @@ const EnhancedPresensiGuru = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">
-                Format File
+                Format Download
               </label>
               <Select value={downloadFormat} onValueChange={setDownloadFormat}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Pilih format" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
                   <SelectItem value="csv">CSV (.csv)</SelectItem>
-                  <SelectItem value="pdf">PDF (.pdf)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
             <div>
               <label className="block text-sm font-medium mb-2">
                 Periode Data (Opsional)
@@ -1049,6 +1493,155 @@ const EnhancedPresensiGuru = () => {
                 <>
                   <Plus className="h-4 w-4 mr-2" />
                   Tambah Data
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Data Modal */}
+      <Dialog open={modals.editData} onOpenChange={() => closeModal("editData")}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">
+              Edit Data Presensi Guru
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Silakan ubah form untuk memperbarui data presensi guru
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Nama Lengkap <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  placeholder="Masukkan nama guru"
+                  value={editingTeacher?.nama || ""}
+                  onChange={(e) =>
+                    setEditingTeacher((prev) => ({ ...prev, nama: e.target.value }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  NIP <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  placeholder="Masukkan NIP"
+                  value={editingTeacher?.nip || ""}
+                  onChange={(e) =>
+                    setEditingTeacher((prev) => ({ ...prev, nip: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Email</label>
+                <Input
+                  type="email"
+                  placeholder="Masukkan email"
+                  value={editingTeacher?.email || ""}
+                  onChange={(e) =>
+                    setEditingTeacher((prev) => ({
+                      ...prev,
+                      email: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Telepon
+                </label>
+                <Input
+                  placeholder="Masukkan nomor telepon"
+                  value={editingTeacher?.phone || ""}
+                  onChange={(e) =>
+                    setEditingTeacher((prev) => ({
+                      ...prev,
+                      phone: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Status Kehadiran <span className="text-red-500">*</span>
+              </label>
+              <Select
+                value={editingTeacher?.status || ""}
+                onValueChange={(value) =>
+                  setEditingTeacher((prev) => ({ ...prev, status: value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih status kehadiran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Hadir">Hadir</SelectItem>
+                  <SelectItem value="Izin">Izin</SelectItem>
+                  <SelectItem value="Sakit">Sakit</SelectItem>
+                  <SelectItem value="Alpha">Alpha</SelectItem>
+                  <SelectItem value="Terlambat">Terlambat</SelectItem>
+                  <SelectItem value="Cuti">Cuti</SelectItem>
+                  <SelectItem value="Dinas Luar">Dinas Luar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Keterangan (Opsional)
+              </label>
+              <Input
+                placeholder="Masukkan keterangan tambahan"
+                value={editingTeacher?.keterangan || ""}
+                onChange={(e) =>
+                  setEditingTeacher((prev) => ({
+                    ...prev,
+                    keterangan: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-medium text-sm mb-1 text-blue-800">
+                Catatan:
+              </h4>
+              <p className="text-xs text-blue-600">
+                Field yang bertanda (*) wajib diisi. Data guru akan diperbarui di
+                dalam sistem setelah berhasil disimpan.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => closeModal("editData")}
+              disabled={loading}
+            >
+              Batal
+            </Button>
+            <Button onClick={handleUpdateTeacher} disabled={loading}>
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Memperbarui...
+                </>
+              ) : (
+                <>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Perbarui Data
                 </>
               )}
             </Button>

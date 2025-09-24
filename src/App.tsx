@@ -12,7 +12,10 @@ import DaftarSurvei from "./pages/DaftarSurvei";
 import HasilSurvei from "./pages/HasilSurvei";
 import ManajemenRole from "./pages/ManajemenRole";
 import TambahRole from "./pages/TambahRole";
+import TambahUser from "./pages/TambahUser";
 import EditRole from "./pages/EditRole";
+import EditUser from "./pages/EditUser";
+import ManagementUsers from "./pages/ManajemenUsers";
 import NotFound from "./pages/NotFound";
 import Digitalsignage from "./pages/DigitalSignageOptimized";
 import Siswa from "./pages/Siswa";
@@ -158,10 +161,26 @@ const router = createBrowserRouter(
       ),
     },
     {
+      path: "/manajemen-user",
+      element: (
+        <Layout>
+          <ManagementUsers />
+        </Layout>
+      ),
+    },
+    {
       path: "/manajemen-role/tambah",
       element: (
         <Layout>
           <TambahRole />
+        </Layout>
+      ),
+    },
+    {
+      path: "/manajemen-user/tambah",
+      element: (
+        <Layout>
+          <TambahUser />
         </Layout>
       ),
     },
@@ -173,12 +192,21 @@ const router = createBrowserRouter(
         </Layout>
       ),
     },
+    {
+      path: "/manajemen-user/edit/:id",
+      element: (
+        <Layout>
+          <EditUser />
+        </Layout>
+      ),
+    },
+
     { path: "/guest-visits/landing/responsive", element: <Digitalsignage2 /> },
     { path: "/guest-visits/landing", element: <Digitalsignage /> },
     { path: "*", element: <NotFound /> },
   ],
   {
-    basename: "/tu",
+    basename: "/tu/",
     future: {
       v7_relativeSplatPath: true,
       // @ts-expect-error v7 flag not in types yet

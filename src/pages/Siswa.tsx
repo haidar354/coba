@@ -217,7 +217,7 @@ const DownloadModal = ({ onClose }) => {
     try {
       // Fetch all students data with large limit to get everything
       const params = {
-        limit: 10000, // Adjust based on your data size
+        limit: 100, // Adjust based on your data size
         page: 1,
       };
 
@@ -230,8 +230,8 @@ const DownloadModal = ({ onClose }) => {
       let studentsData = [];
       if (Array.isArray(response.data)) {
         studentsData = response.data;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        studentsData = response.data.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        studentsData = response.data;
       }
 
       return studentsData;
@@ -579,84 +579,68 @@ const DownloadModal = ({ onClose }) => {
 const UploadModal = ({ onClose, onUploadSuccess }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
 
   const handleFileSelect = (e) => {
-    setSelectedFile(e.target.files[0]);
-  };
-
-  const processExcelFile = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: "array" });
-
-          // Ambil sheet pertama
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-
-          // Konversi sheet ke JSON
-          const excelData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-          resolve(excelData);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = () => reject(new Error("Error reading file"));
-      reader.readAsArrayBuffer(file);
-    });
+    const file = e.target.files[0];
+    setSelectedFile(file);
   };
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      alert("Pilih file terlebih dahulu!");
+      alert("Pilih file terlebih dahulu");
       return;
     }
 
+    setLoading(true);
+
     try {
-      setIsLoading(true);
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("folder_name", "data/siswa");
 
-      let uploadData;
+      const response = await api.post("/api/upload/excel", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
 
-      if (
-        selectedFile.name.endsWith(".xlsx") ||
-        selectedFile.name.endsWith(".xls")
-      ) {
-        // Process Excel file
-        const excelData = await processExcelFile(selectedFile);
-        uploadData = {
+      if (response.status === 200) {
+        console.log("Response data:", response);
+        const responseada = await api.post("/api/students/bulk", {
           type: "excel",
-          data: excelData,
-        };
-      } else {
-        // For CSV or other formats, you'd process differently
-        uploadData = {
-          type: "csv",
-          students: [], // Process CSV data here
-        };
-      }
-
-      const response = await api.post("/api/students/bulk", uploadData);
-
-      if (response.data.success) {
-        alert(
-          `Upload berhasil! ${response.data.data.summary.successful} siswa berhasil ditambahkan, ${response.data.data.summary.failed} gagal.`
-        );
-        onUploadSuccess && onUploadSuccess();
-        onClose();
-      } else {
-        alert("Upload gagal: " + response.data.message);
+          data: response.data,
+        });
+        if (responseada.status === 201) {
+          alert(`Upload berhasil!`);
+          onClose();
+        }
       }
     } catch (error) {
-      console.error("Upload error:", error);
-      alert(
-        "Gagal upload file: " + (error.response?.data?.message || error.message)
-      );
+      if (error.response) {
+        alert("Upload gagal: " + error.response.data.message);
+      } else {
+        alert("Error: " + error.message);
+      }
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
+  };
+
+  const handleDownload = () => {
+    // Create a temporary link element to trigger download
+    const link = document.createElement("a");
+    link.href = "/tu/file_template/Template%20Data%20Siswa.xlsx";
+    link.download = "template_data_siswa.xlsx";
+    link.target = "_blank";
+
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -684,11 +668,14 @@ const UploadModal = ({ onClose, onUploadSuccess }) => {
       </div>
 
       <div className="p-4 border rounded-lg bg-blue-50">
-        <h4 className="font-medium text-sm mb-2">Format Template Excel:</h4>
-        <p className="text-xs text-muted-foreground">
-          Kolom yang diperlukan: Nama Lengkap, Kelas, Jurusan, Subkelas
-          (opsional), NIS, Tahun Ajaran
-        </p>
+        <h4 className="font-medium text-sm mb-2">Template Excel:</h4>
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Download size={16} />
+          Download Template Excel
+        </button>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
@@ -945,10 +932,8 @@ const AddEditStudentModal = ({ onClose, student = null, onSave }) => {
         onClose();
       }
     } catch (error) {
-      console.error("Save error:", error);
       alert(
-        "Gagal menyimpan data: " +
-          (error.response?.data?.message || error.message)
+        "Gagal menyimpan data: User sudah terdaftar sebagai siswa atau terjadi kesalahan lain."
       );
     } finally {
       setIsLoading(false);
@@ -1031,6 +1016,41 @@ export default function Siswa() {
   const [searchTerm, setSearchTerm] = useState("");
   const [pagination, setPagination] = useState(null);
 
+  const [rule, setRule] = useState(null);
+
+ useEffect(() => {
+   try {
+     // Cek apakah localStorage tersedia dan ada data
+     const roleData = localStorage.getItem("role");
+
+     if (!roleData) {
+       setRule(null); // atau default value yang sesuai
+       return;
+     }
+
+     // Parse JSON dengan error handling
+     const parsedRole = JSON.parse(roleData);
+
+     // Validasi apakah parsedRole adalah array
+     if (!Array.isArray(parsedRole)) {
+       console.warn("Role data is not an array");
+       setRule(null);
+       return;
+     }
+
+     // Cari rule dengan pengecekan resource
+     const ruleTable = parsedRole.find(
+       (r) => r && r.resource && r.resource.name === "students"
+     );
+
+     setRule(ruleTable || null);
+   } catch (error) {
+     console.error("Error parsing role data from localStorage:", error);
+     // Bisa juga clear localStorage yang corrupt
+     localStorage.removeItem("role");
+     setRule(null);
+   }
+ }, []);
   // Load data from API
   const fetchStudents = async () => {
     try {
@@ -1043,9 +1063,12 @@ export default function Siswa() {
 
       const response = await api.get("/api/students", { params });
 
-      console.log("Full API Response:", response); // Debug log
       console.log("Response Data:", response.data); // Debug log
-      console.log("Response Pagination:", response.pagination); // Debug log
+      console.log("Full API Response:", response); // Debug log
+      console.log(
+        "Response Pagination:",
+        JSON.parse(response.headers["x-pagination"])
+      ); // Debug log
 
       if (response.data) {
         let students = [];
@@ -1056,19 +1079,19 @@ export default function Siswa() {
           // If response.data is directly an array
           students = response.data;
           // Check for pagination in response or headers
-          paginationInfo = response.pagination || response.data.pagination;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
+          paginationInfo = JSON.parse(response.headers["x-pagination"]);
+        } else if (response.data && Array.isArray(response.data)) {
           // If data is nested: { data: [], pagination: {} }
-          students = response.data.data;
-          paginationInfo = response.data.pagination;
-        } else if (Array.isArray(response.data.students)) {
+          students = response.data;
+          paginationInfo = JSON.parse(response.headers["x-pagination"]);
+        } else if (Array.isArray(response.data)) {
           // Alternative structure: { students: [], pagination: {} }
-          students = response.data.students;
-          paginationInfo = response.data.pagination;
+          students = response.data;
+          paginationInfo = JSON.parse(response.headers["x-pagination"]);
         } else {
           // Fallback: treat entire response.data as students array
           students = Array.isArray(response.data) ? response.data : [];
-          paginationInfo = response.pagination;
+          paginationInfo = JSON.parse(response.headers["x-pagination"]);
         }
 
         console.log("Processed Students:", students); // Debug log
@@ -1194,18 +1217,22 @@ export default function Siswa() {
         <h1 className="text-3xl font-bold tracking-tight">Data Siswa</h1>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => openModal("upload")}>
-            <Upload className="h-4 w-4" />
-            Upload
-          </Button>
+          {rule && rule?.can_create == true && (
+            <Button variant="outline" onClick={() => openModal("upload")}>
+              <Upload className="h-4 w-4" />
+              Upload
+            </Button>
+          )}
           <Button variant="outline" onClick={() => openModal("download")}>
             <Download className="h-4 w-4" />
             Download
           </Button>
+           {rule && rule?.can_create == true && (
           <Button onClick={() => openModal("add")}>
             <Plus className="h-4 w-4" />
             Tambah Data
           </Button>
+           )}
         </div>
       </div>
 
@@ -1274,7 +1301,7 @@ export default function Siswa() {
                           {item.nis}
                         </TableCell>
                         <TableCell className="font-mono text-sm">
-                          {item.user?.data?.nisn || "N/A"}
+                          {item.user?.data?.nisn || "-"}
                         </TableCell>
                         <TableCell>
                           <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">

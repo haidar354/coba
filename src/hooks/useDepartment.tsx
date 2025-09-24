@@ -67,7 +67,8 @@ export const useDepartment = () => {
 
       const dataToSend = {
         name: departmentData.name,
-        description: departmentData.description || null,
+        short_name: departmentData.short_name || null,
+        code: departmentData.code || null,
       };
 
       const response = await api.post("/api/classes/departments", dataToSend);

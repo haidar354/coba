@@ -98,21 +98,13 @@ const DepartmentFormModal = ({
         code: initialData.code || "",
       });
     } else {
-      setFormData({
-        name: "",
-        short_name: "",
-        code: "",
-      });
+      setFormData({ name: "", short_name: "", code: "" });
     }
-    setErrors({});
+    setErrors({ name: "", short_name: "", code: "" }); // ✅ reset errors benar
   }, [initialData, isOpen]);
 
   const validateForm = () => {
-    const newErrors = {
-      name: "",
-      short_name: "",
-      code: "",
-    };
+    const newErrors = { name: "", short_name: "", code: "" };
 
     if (!formData.name.trim()) {
       newErrors.name = "Nama jurusan harus diisi";
@@ -120,19 +112,24 @@ const DepartmentFormModal = ({
       newErrors.name = "Nama jurusan minimal 3 karakter";
     }
 
+    if (!formData.short_name.trim()) {
+      newErrors.short_name = "Akronim harus diisi";
+    }
+
+    if (!formData.code.trim()) {
+      newErrors.code = "Kode harus diisi";
+    }
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return Object.values(newErrors).every((v) => v === ""); // ✅ cek semua field kosong
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
-      await onSubmit(formData);
+      await onSubmit(formData); // ✅ SubmitForm / SubmitChange lewat prop
       onClose();
     } catch (error) {
       console.error("Form submission error:", error);
@@ -166,7 +163,7 @@ const DepartmentFormModal = ({
               Nama Jurusan *
             </label>
             <Input
-              placeholder="Contoh: Teknik Informatika, Akuntansi"
+              placeholder="Contoh: Teknik Informatika"
               value={formData.name}
               onChange={(e) => handleChange("name", e.target.value)}
               className={errors.name ? "border-red-500" : ""}
@@ -180,7 +177,7 @@ const DepartmentFormModal = ({
               Nama Akronim *
             </label>
             <Input
-              placeholder="Contoh: Teknik Informatika, Akuntansi"
+              placeholder="Contoh: TI, AK"
               value={formData.short_name}
               onChange={(e) => handleChange("short_name", e.target.value)}
               className={errors.short_name ? "border-red-500" : ""}
@@ -192,7 +189,7 @@ const DepartmentFormModal = ({
           <div>
             <label className="block text-sm font-medium mb-2">Kode *</label>
             <Input
-              placeholder="Contoh: Teknik Informatika, Akuntansi"
+              placeholder="Contoh: 1234"
               value={formData.code}
               onChange={(e) => handleChange("code", e.target.value)}
               className={errors.code ? "border-red-500" : ""}
@@ -239,6 +236,7 @@ const DepartmentFormModal = ({
     </Dialog>
   );
 };
+
 
 // Department Detail Modal
 const DepartmentDetailModal = ({ isOpen, onClose, department }) => {
@@ -340,7 +338,7 @@ export default function Department() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Modal states
+  // Modal statSes
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
@@ -354,7 +352,9 @@ export default function Department() {
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
-
+    if (searchTerm.trim() > 0 && searchTerm.length < 3) {
+      return;
+    }
     const timeout = setTimeout(() => {
       loadDepartments({
         page: currentPage,
@@ -503,33 +503,6 @@ export default function Department() {
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total Jurusan"
-          value={pagination.total_items || 0}
-          icon={Building}
-          color="blue"
-        />
-        <StatsCard
-          title="Halaman Saat Ini"
-          value={currentPage}
-          icon={FileSpreadsheet}
-          color="green"
-        />
-        <StatsCard
-          title="Total Halaman"
-          value={pagination.total_pages || 1}
-          icon={Users}
-          color="purple"
-        />
-        <StatsCard
-          title="Per Halaman"
-          value={itemsPerPage}
-          icon={GraduationCap}
-          color="orange"
-        />
-      </div>
 
       {/* Error Alert */}
       {error && (

@@ -34,7 +34,8 @@ import {
 } from "@/components/ui/select";
 import { useState, useEffect, useCallback } from "react";
 import api from "@/utils/axios";
-
+import { downloadExcel } from "@/utils/download.util";
+import { useNavigate } from "react-router-dom";
 // Modal Component
 const Modal = ({ isOpen, onClose, title, children, size = "default" }) => {
   if (!isOpen) return null;
@@ -99,7 +100,7 @@ const DownloadModal = ({ onClose, onDownload }) => {
   const handleDownload = async () => {
     setIsLoading(true);
     try {
-      await onDownload({ format, startDate, endDate });
+      await onDownload();
       onClose();
     } catch (error) {
       console.error("Download error:", error);
@@ -180,54 +181,66 @@ const UploadModal = ({ onClose, onUpload }) => {
   const [uploadResult, setUploadResult] = useState(null);
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    setFile(selectedFile);
+    const file = e.target.files[0];
+    setFile(file);
     setUploadResult(null);
   };
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (!file) {
+      alert("Pilih file terlebih dahulu");
+      return;
+    }
 
     setIsLoading(true);
+
     try {
-      const result = await onUpload(file);
-      setUploadResult(result);
-      if (result.success) {
-        setTimeout(() => onClose(), 2000);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder_name", "data/guru");
+
+      const response = await api.post("/api/upload/excel", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+
+      if (response.status === 200) {
+        console.log("Response data:", response);
+        const responseada = await api.post("/api/teachers/bulk", {
+          type: "excel",
+          data: response.data,
+        });
+        if (responseada.status === 201) {
+          alert(`Upload berhasil!`);
+          onClose();
+        }
       }
     } catch (error) {
-      console.error("Upload error:", error);
-      setUploadResult({
-        success: false,
-        message: error.message || "Upload gagal",
-      });
+      if (error.response) {
+        alert("Upload gagal: " + error.response.data.message);
+      } else {
+        alert("Error: " + error.message);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const downloadTemplate = () => {
-    // Create sample Excel data
-    const sampleData = [
-      ["Nama Lengkap", "NIP", "Kelas", "Jurusan", "Subkelas", "Tahun Ajaran"],
-      ["John Doe", "123456789", "10", "IPA", "A", "2024/2025"],
-      ["Jane Smith", "987654321", "11", "IPS", "B", "2024/2025"],
-      ["Ahmad Rahman", "111222333", "12", "IPA", "C", "2024/2025"],
-    ];
+  const handleDownload = () => {
+    // Create a temporary link element to trigger download
+    const link = document.createElement("a");
+    link.href = "/tu/file_template/Template%20Data%20Guru.xlsx";
+    link.download = "template_data_guru.xlsx";
+    link.target = "_blank";
 
-    const csvContent = sampleData.map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.style.display = "none";
-    a.href = url;
-    a.download = "template-data-guru.csv";
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
-
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
@@ -257,19 +270,15 @@ const UploadModal = ({ onClose, onUpload }) => {
         </p>
       </div>
 
-      <div className="p-4 bg-blue-50 rounded-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-medium text-sm mb-2">Template Excel:</h4>
-            <p className="text-xs text-gray-600">
-              Kolom: Nama Lengkap, NIP, Kelas, Jurusan, Subkelas, Tahun Ajaran
-            </p>
-          </div>
-          <Button size="sm" variant="outline" onClick={downloadTemplate}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Download Template
-          </Button>
-        </div>
+      <div className="p-4 border rounded-lg bg-blue-50">
+        <h4 className="font-medium text-sm mb-2">Template Excel:</h4>
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Download size={16} />
+          Download Template Excel
+        </button>
       </div>
 
       {uploadResult && uploadResult.data && (
@@ -578,7 +587,42 @@ export default function Guru() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalType, setModalType] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState(null);
+  
+  const navigate = useNavigate()
+  const [rule, setRule] = useState(null);
 
+  useEffect(() => {
+    try {
+      // Cek apakah localStorage tersedia dan ada data
+      const roleData = localStorage.getItem("role");
+      if (!roleData) {
+        setRule(null); // atau default value yang sesuai
+        return;
+      }
+
+      // Parse JSON dengan error handling
+       const parsedRole = JSON.parse(roleData);
+
+      // Validasi apakah parsedRole adalah array
+      if (!Array.isArray(parsedRole)) {
+        console.warn("Role data is not an array");
+        setRule(null);
+        return;
+      }
+
+      // Cari rule dengan pengecekan resource
+      const ruleTable = parsedRole.find(
+        (r) => r && r.resource && r.resource.name == "teachers"
+      );
+      if(ruleTable.can_read === false)  {
+        navigate("/dashboard")
+      }
+      setRule(ruleTable || null);
+    } catch (error) {
+      console.error("Error parsing role data from localStorage:", error);
+      setRule(null);
+    }
+  }, [navigate]);
   // Debounced search
   const [searchTimeout, setSearchTimeout] = useState(null);
 
@@ -657,38 +701,8 @@ export default function Guru() {
   };
 
   // API handlers
-  const handleDownload = async ({ format, startDate, endDate }) => {
-    try {
-      const params = {
-        format: format === "excel" ? "xlsx" : "csv",
-        ...(startDate && { startDate }),
-        ...(endDate && { endDate }),
-      };
-
-      const response = await api.get("/api/teachers/export", {
-        params,
-        responseType: "blob",
-      });
-
-      // Create blob link to download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-
-      const extension = format === "excel" ? "xlsx" : "csv";
-      const fileName = `data-guru-${
-        new Date().toISOString().split("T")[0]
-      }.${extension}`;
-
-      link.setAttribute("download", fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Download error:", error);
-      throw new Error("Gagal mengunduh data");
-    }
+  const handleDownload = async () => {
+    await downloadExcel("teachers");
   };
 
   const handleUpload = async (file) => {
@@ -720,6 +734,7 @@ export default function Guru() {
   };
 
   const handleAddTeacher = async (teacherData) => {
+    console.log("Adding teacher:", teacherData);
     try {
       // Create user data structure for teacher
       const userData = {
@@ -727,8 +742,8 @@ export default function Guru() {
         id_role: 3, // Teacher role ID
         data: {
           nip: teacherData.nip,
-          ...(teacherData.email && { email: teacherData.email }),
-          ...(teacherData.phone && { phone: teacherData.phone }),
+          email: teacherData.email || "",
+          phone: teacherData.phone || "",
           id_class: null, // Will be assigned later
         },
       };
@@ -853,6 +868,7 @@ export default function Guru() {
         <h1 className="text-2xl font-bold">Data Guru</h1>
 
         <div className="flex gap-2">
+          {rule?.can_create === true && (
           <Button
             variant="outline"
             className="gap-2"
@@ -861,6 +877,7 @@ export default function Guru() {
             <Upload className="h-4 w-4" />
             Upload
           </Button>
+          )}
           <Button
             variant="outline"
             className="gap-2"
@@ -869,6 +886,7 @@ export default function Guru() {
             <Download className="h-4 w-4" />
             Download
           </Button>
+          {rule?.can_create === true && (
           <Button
             className="gap-2"
             onClick={() => openModal("add", "Tambah Data Guru")}
@@ -876,6 +894,7 @@ export default function Guru() {
             <Plus className="h-4 w-4" />
             Tambah Data
           </Button>
+          )}
         </div>
       </div>
 
@@ -978,6 +997,7 @@ export default function Guru() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                          {rule?.can_edit === true && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -988,6 +1008,8 @@ export default function Guru() {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
+                          )}
+                          {rule?.can_delete === true && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -996,6 +1018,7 @@ export default function Guru() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
+                          )}
                           </div>
                         </TableCell>
                       </TableRow>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import * as XLSX from "xlsx";
+import surveyService from "@/services/surveyService";
+import { getAllData } from "@/lib/dynamicApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,41 +41,12 @@ import {
   Search,
 } from "lucide-react";
 import { useParams } from "react-router-dom";
-import api from "@/utils/axios";
 
-interface Survey {
-  id: number;
-  title: string;
-  description?: string;
-  id_academic_year: number;
-  created_at: string;
-  updated_at: string;
-  academic_year?: {
-    id: number;
-    year: string;
-    is_active: boolean;
-  };
-}
-
-interface SurveyQuestion {
-  id: number;
-  id_survey: number;
-  question: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-  survey?: {
-    id: number;
-    title: string;
-  };
-}
-
-const DaftarPertanyaan = () => {
+const DaftarSurvei = () => {
   const { id } = useParams<{ id?: string }>();
   const [idSurvey, setIdSurvey] = useState<string | undefined>(undefined);
-  const [surveys, setSurveys] = useState<Survey[]>([]);
-  const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[]>([]);
-  const [academicYears, setAcademicYears] = useState<any[]>([]);
+  const [surveys, setSurveys] = useState([]);
+  const [surveyQuestions, setSurveyQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,9 +55,8 @@ const DaftarPertanyaan = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] =
-    useState<SurveyQuestion | null>(null);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [selectedSurvey, setSelectedSurvey] = useState(null);
+  const [uploadFile, setUploadFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
   const { toast } = useToast();
@@ -98,103 +70,79 @@ const DaftarPertanyaan = () => {
 
   // Form states
   const [formData, setFormData] = useState({
-    id_survey: "",
-    question: "",
+    title: "",
     description: "",
+    id_academic_year: "",
   });
 
   // Fetch surveys
   const fetchSurveys = useCallback(async () => {
-    try {
-      const response = await api.get("/api/academic/surveys", {
-        params: {
-          page: 1,
-          limit: 100, // Get all surveys for dropdown
-        },
-      });
-      setSurveys(response.data || []);
-    } catch (error) {
-      console.error("Error fetching surveys:", error);
-    }
-  }, []);
-
-  // Fetch academic years
-  const fetchAcademicYears = useCallback(async () => {
-    try {
-      const response = await api.get("/api/academic/years", {
-        params: {
-          page: 1,
-          limit: 100, // Get all academic years for dropdown
-        },
-      });
-      setAcademicYears(response.data || []);
-    } catch (error) {
-      console.error("Error fetching academic years:", error);
-    }
-  }, []);
-
-  // Fetch survey questions
-  const fetchSurveyQuestions = useCallback(async () => {
-    if (searchTerm.trim().length > 0 && searchTerm.trim().length < 3) {
-      return;
-    }
-
     setLoading(true);
     try {
-      const params: any = {
+      const response = await surveyService.getAllSurveys({
         page: currentPage,
         limit: itemsPerPage,
-      };
+        search: searchTerm,
+      });
 
-      if (idSurvey) {
-        params.id_survey = idSurvey;
-      }
-
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-
-      const response = await api.get("/api/academic/questions", { params });
-
-      setSurveyQuestions(response.data || []);
+      setSurveys(response.data || []);
       setTotalPages(
         JSON.parse(response.headers["x-pagination"]).total_pages || 1
       );
     } catch (error) {
-      console.error("Error fetching survey questions:", error);
-      if (searchTerm.trim().length === 0 || searchTerm.trim().length >= 3) {
+      if (searchTerm.trim().length > 2) {
+        console.error("Error fetching surveys:", error);
         toast({
           title: "Error",
-          description: "Gagal memuat data pertanyaan survey",
+          description: "Gagal memuat data survey",
           variant: "destructive",
         });
       }
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, searchTerm, idSurvey, toast]);
+  }, [currentPage, itemsPerPage, searchTerm, toast]);
 
   useEffect(() => {
     fetchSurveys();
-    fetchAcademicYears();
-  }, [fetchSurveys, fetchAcademicYears]);
-
+  }, [fetchSurveys]);
   useEffect(() => {
-    fetchSurveyQuestions();
-  }, [fetchSurveyQuestions]);
+    const testGet = async () => {
+      const query: { include_role: boolean; id_survey?: string } = {
+        include_role: false,
+      };
+
+      if (idSurvey) {
+        query.id_survey = idSurvey;
+      }
+
+      try {
+        const response = await getAllData("academic/questions", query);
+        setSurveyQuestions(response);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    testGet();
+  }, [idSurvey]);
 
   // Handle search with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setCurrentPage(1);
-      fetchSurveyQuestions();
+      fetchSurveys();
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, fetchSurveys]);
+
+  // useEffect(() => {
+  //   console.log("ID SURVEY: ", idSurvey);
+  // }, [idSurvey]);
 
   // Handle file upload
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0];
     if (file) {
       setUploadFile(file);
@@ -215,135 +163,102 @@ const DaftarPertanyaan = () => {
   // Reset form
   const resetForm = () => {
     setFormData({
-      id_survey: "",
-      question: "",
+      title: "",
       description: "",
+      id_academic_year: "",
     });
   };
 
-  // Handle create survey question
-  const handleCreateQuestion = async (e: React.FormEvent) => {
+  // Handle create survey
+  const handleCreateSurvey = async (e) => {
     e.preventDefault();
-    if (!formData.question.trim()) {
+    if (!formData.title.trim()) {
       toast({
         title: "Error",
-        description: "Pertanyaan harus diisi",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.id_survey) {
-      toast({
-        title: "Error",
-        description: "Survey harus dipilih",
+        description: "Judul survey harus diisi",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      await api.post("/api/academic/questions", {
-        id_survey: parseInt(formData.id_survey),
-        question: formData.question.trim(),
-        description: formData.description.trim() || null,
-      });
-
+      await surveyService.createSurvey(formData);
       toast({
         title: "Berhasil",
-        description: "Pertanyaan survey berhasil dibuat",
+        description: "Survey berhasil dibuat",
       });
       setIsCreateModalOpen(false);
       resetForm();
-      fetchSurveyQuestions();
-    } catch (error: any) {
-      console.error("Error creating survey question:", error);
+      fetchSurveys();
+    } catch (error) {
+      console.error("Error creating survey:", error);
       toast({
         title: "Error",
-        description:
-          error.response?.data?.detail || "Gagal membuat pertanyaan survey",
+        description: "Gagal membuat survey",
         variant: "destructive",
       });
     }
   };
 
-  // Handle edit survey question
-  const handleEditQuestion = async (e: React.FormEvent) => {
+  // Handle edit survey
+  const handleEditSurvey = async (e) => {
     e.preventDefault();
-    if (!formData.question.trim()) {
+    if (!formData.title.trim()) {
       toast({
         title: "Error",
-        description: "Pertanyaan harus diisi",
+        description: "Judul survey harus diisi",
         variant: "destructive",
       });
       return;
     }
-
-    if (!formData.id_survey) {
-      toast({
-        title: "Error",
-        description: "Survey harus dipilih",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!selectedQuestion) return;
 
     try {
-      await api.put(`/api/academic/questions/${selectedQuestion.id}`, {
-        id_survey: parseInt(formData.id_survey),
-        question: formData.question.trim(),
-        description: formData.description.trim() || null,
-      });
-
+      await surveyService.updateSurvey(selectedSurvey.id, formData);
       toast({
         title: "Berhasil",
-        description: "Pertanyaan survey berhasil diupdate",
+        description: "Survey berhasil diupdate",
       });
       setIsEditModalOpen(false);
       resetForm();
-      setSelectedQuestion(null);
-      fetchSurveyQuestions();
-    } catch (error: any) {
-      console.error("Error updating survey question:", error);
+      setSelectedSurvey(null);
+      fetchSurveys();
+    } catch (error) {
+      console.error("Error updating survey:", error);
       toast({
         title: "Error",
-        description:
-          error.response?.data?.detail || "Gagal mengupdate pertanyaan survey",
+        description: "Gagal mengupdate survey",
         variant: "destructive",
       });
     }
   };
 
-  // Handle delete survey question
-  const handleDeleteQuestion = async (question: SurveyQuestion) => {
+  // Handle delete survey
+  const handleDeleteSurvey = async (survey) => {
     if (
       window.confirm(
-        `Apakah Anda yakin ingin menghapus pertanyaan "${question.question}"?`
+        `Apakah Anda yakin ingin menghapus survey "${survey.title}"?`
       )
     ) {
       try {
-        await api.delete(`/api/academic/questions/${question.id}`);
+        await surveyService.deleteSurvey(survey.id);
         toast({
           title: "Berhasil",
-          description: "Pertanyaan survey berhasil dihapus",
+          description: "Survey berhasil dihapus",
         });
-        fetchSurveyQuestions();
-      } catch (error: any) {
-        console.error("Error deleting survey question:", error);
+        fetchSurveys();
+      } catch (error) {
+        console.error("Error deleting survey:", error);
         toast({
           title: "Error",
-          description:
-            error.response?.data?.detail || "Gagal menghapus pertanyaan survey",
+          description: "Gagal menghapus survey",
           variant: "destructive",
         });
       }
     }
   };
 
-  // Handle upload questions from XLSX
-  const handleUploadQuestions = async () => {
+  // Handle upload surveys from XLSX
+  const handleUploadSurveys = async () => {
     if (!uploadFile) {
       toast({
         title: "Error",
@@ -354,113 +269,37 @@ const DaftarPertanyaan = () => {
     }
 
     setUploading(true);
-
     try {
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-      formData.append("folder_name", "data/survey");
-
-      const response = await api.post("/api/upload/excel", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Accept: "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-        },
+      const response = await surveyService.uploadSurveysXLSX(uploadFile);
+      toast({
+        title: "Berhasil",
+        description: response.data.message,
       });
-
-      if (response.status === 200) {
-        console.log("Response data:", response);
-        const responseada = await api.post(
-          "/api/academic/excel/survey_questions",
-          response.data
-        );
-        if (responseada.status === 201) {
-          alert(`Upload berhasil!`);
-          toast({
-            title: "Berhasil",
-            description: "Survey berhasil diupload",
-          });
-        }
-      }
+      setIsUploadModalOpen(false);
+      setUploadFile(null);
+      fetchSurveys();
     } catch (error) {
-      if (error.response) {
-        alert("Upload gagal: " + error.response.data.message);
-        toast({
-          title: "Gagal",
-          description: "Survey gagal diupload",
-        });
-      } else {
-        alert("Error: " + error.message);
-      }
+      console.error("Error uploading surveys:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.detail || "Gagal mengupload file",
+        variant: "destructive",
+      });
     } finally {
       setUploading(false);
     }
   };
 
-  // Handle download questions
-  const handleDownloadQuestions = async () => {
+  // Handle download surveys
+  const handleDownloadSurveys = async () => {
     try {
-      // Get all questions for export
-      const params: any = {
-        page: 1,
-        limit: 100,
-      };
-
-      if (idSurvey) {
-        params.id_survey = idSurvey;
-      }
-
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim();
-      }
-
-      const response = await api.get("/api/academic/questions", { params });
-      const questions = response.data || [];
-
-      if (questions.length === 0) {
-        toast({
-          title: "Info",
-          description: "Tidak ada data untuk didownload",
-        });
-        return;
-      }
-
-      // Create Excel workbook
-      const workbook = XLSX.utils.book_new();
-      const worksheetData = [
-        [
-          "ID",
-          "ID Survey",
-          "Judul Survey",
-          "Pertanyaan",
-          "Deskripsi",
-          "Dibuat",
-        ],
-        ...questions.map((question: SurveyQuestion) => [
-          question.id,
-          question.id_survey,
-          question.survey?.title || "",
-          question.question,
-          question.description || "",
-          new Date(question.created_at).toLocaleDateString("id-ID"),
-        ]),
-      ];
-
-      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Pertanyaan Survey");
-
-      // Download file
-      const fileName = `pertanyaan-survey-${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
-      XLSX.writeFile(workbook, fileName);
-
+      await surveyService.downloadSurveysXLSX({ search: searchTerm });
       toast({
         title: "Berhasil",
         description: "File Excel berhasil didownload",
       });
-    } catch (error: any) {
-      console.error("Error downloading questions:", error);
+    } catch (error) {
+      console.error("Error downloading surveys:", error);
       toast({
         title: "Error",
         description: "Gagal mendownload file",
@@ -470,63 +309,45 @@ const DaftarPertanyaan = () => {
   };
 
   // Open edit modal
-  const openEditModal = (question: SurveyQuestion) => {
-    setSelectedQuestion(question);
+  const openEditModal = (survey) => {
+    setSelectedSurvey(survey);
     setFormData({
-      id_survey: question.id_survey.toString(),
-      question: question.question,
-      description: question.description || "",
+      title: survey.title,
+      description: survey.description || "",
+      id_academic_year: survey.id_academic_year || "",
     });
     setIsEditModalOpen(true);
   };
-const handleDownload = () => {
-  // Create a temporary link element to trigger download
-  const link = document.createElement("a");
-  link.href = "/tu/file_template/Template%20Pertanyaan%20Survey.xlsx";
-  link.download = "template_pertanyaan_survey.xlsx";
-  link.target = "_blank";
 
-  // Append to body, click, and remove
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Daftar Pertanyaan Survey</h1>
-          {idSurvey && (
-            <p className="text-gray-600 mt-1">
-              Filter berdasarkan Survey ID: {idSurvey}
-            </p>
-          )}
-        </div>
+        <h1 className="text-3xl font-bold">Daftar Pertanyaan Survey</h1>
         <div className="flex flex-wrap gap-2">
           <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
                 <Upload className="w-4 h-4" />
-                Upload
+                Upload XLSX
               </Button>
             </DialogTrigger>
           </Dialog>
 
           <Button
-            onClick={handleDownloadQuestions}
+            onClick={handleDownloadSurveys}
             variant="outline"
             className="flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
-            Download
+            Download XLSX
           </Button>
 
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2">
                 <Plus className="w-4 h-4" />
-                Tambah Pertanyaan
+                Tambah Survey
               </Button>
             </DialogTrigger>
           </Dialog>
@@ -540,7 +361,7 @@ const handleDownload = () => {
             <div className="flex items-center gap-2 flex-1 max-w-md">
               <Search className="w-4 h-4 text-gray-500" />
               <Input
-                placeholder="Cari pertanyaan..."
+                placeholder="Cari survey..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="flex-1"
@@ -571,7 +392,7 @@ const handleDownload = () => {
         </CardContent>
       </Card>
 
-      {/* Questions Table */}
+      {/* Surveys Table */}
       <Card>
         <CardHeader>
           <CardTitle>Data Pertanyaan Survey</CardTitle>
@@ -591,6 +412,7 @@ const handleDownload = () => {
                     <TableHead className="text-center">Pertanyaan</TableHead>
                     <TableHead className="text-center">Deskripsi</TableHead>
                     <TableHead className="text-center">Dibuat</TableHead>
+                    <TableHead className="text-center">Rating</TableHead>
                     <TableHead className="text-center">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -608,17 +430,17 @@ const handleDownload = () => {
                           {(currentPage - 1) * itemsPerPage + index + 1}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {item.survey?.title || "-"}
+                          {item.survey.title}
                         </TableCell>
                         <TableCell>{item.question || "-"}</TableCell>
                         <TableCell>{item.description || "-"}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell>
                           {new Date(item.created_at).toLocaleDateString(
                             "id-ID"
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex gap-2 items-center justify-center">
+                        <TableCell>
+                          <div className="flex gap-2 items-center">
                             <Button
                               size="sm"
                               variant="outline"
@@ -629,7 +451,7 @@ const handleDownload = () => {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => handleDeleteQuestion(item)}
+                              onClick={() => handleDeleteSurvey(item)}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -674,45 +496,23 @@ const handleDownload = () => {
         </CardContent>
       </Card>
 
-      {/* Create Question Modal */}
+      {/* Create Survey Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tambah Pertanyaan Survey Baru</DialogTitle>
+            <DialogTitle>Tambah Survey Baru</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreateQuestion} className="space-y-4">
+          <form onSubmit={handleCreateSurvey} className="space-y-4">
             <div>
-              <Label htmlFor="survey">Survey *</Label>
-              <Select
-                value={formData.id_survey}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, id_survey: value })
-                }
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih survey" />
-                </SelectTrigger>
-                <SelectContent>
-                  {surveys.map((survey) => (
-                    <SelectItem key={survey.id} value={survey.id.toString()}>
-                      {survey.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="question">Pertanyaan *</Label>
-              <Textarea
-                id="question"
-                value={formData.question}
+              <Label htmlFor="title">Judul Survey *</Label>
+              <Input
+                id="title"
+                value={formData.title}
                 onChange={(e) =>
-                  setFormData({ ...formData, question: e.target.value })
+                  setFormData({ ...formData, title: e.target.value })
                 }
-                placeholder="Masukkan pertanyaan survey"
+                placeholder="Masukkan judul survey"
                 required
-                rows={3}
               />
             </div>
             <div>
@@ -723,18 +523,26 @@ const handleDownload = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                placeholder="Masukkan deskripsi pertanyaan"
-                rows={2}
+                placeholder="Masukkan deskripsi survey"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="academic_year">ID Tahun Akademik</Label>
+              <Input
+                id="academic_year"
+                value={formData.id_academic_year}
+                onChange={(e) =>
+                  setFormData({ ...formData, id_academic_year: e.target.value })
+                }
+                placeholder="Masukkan ID tahun akademik"
               />
             </div>
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setIsCreateModalOpen(false);
-                  resetForm();
-                }}
+                onClick={() => setIsCreateModalOpen(false)}
               >
                 Batal
               </Button>
@@ -744,45 +552,23 @@ const handleDownload = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Question Modal */}
+      {/* Edit Survey Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Pertanyaan Survey</DialogTitle>
+            <DialogTitle>Edit Survey</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditQuestion} className="space-y-4">
+          <form onSubmit={handleEditSurvey} className="space-y-4">
             <div>
-              <Label htmlFor="edit-survey">Survey *</Label>
-              <Select
-                value={formData.id_survey}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, id_survey: value })
-                }
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih survey" />
-                </SelectTrigger>
-                <SelectContent>
-                  {surveys.map((survey) => (
-                    <SelectItem key={survey.id} value={survey.id.toString()}>
-                      {survey.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit-question">Pertanyaan *</Label>
-              <Textarea
-                id="edit-question"
-                value={formData.question}
+              <Label htmlFor="edit-title">Judul Survey *</Label>
+              <Input
+                id="edit-title"
+                value={formData.title}
                 onChange={(e) =>
-                  setFormData({ ...formData, question: e.target.value })
+                  setFormData({ ...formData, title: e.target.value })
                 }
-                placeholder="Masukkan pertanyaan survey"
+                placeholder="Masukkan judul survey"
                 required
-                rows={3}
               />
             </div>
             <div>
@@ -793,19 +579,26 @@ const handleDownload = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                placeholder="Masukkan deskripsi pertanyaan"
-                rows={2}
+                placeholder="Masukkan deskripsi survey"
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-academic_year">ID Tahun Akademik</Label>
+              <Input
+                id="edit-academic_year"
+                value={formData.id_academic_year}
+                onChange={(e) =>
+                  setFormData({ ...formData, id_academic_year: e.target.value })
+                }
+                placeholder="Masukkan ID tahun akademik"
               />
             </div>
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  setIsEditModalOpen(false);
-                  resetForm();
-                  setSelectedQuestion(null);
-                }}
+                onClick={() => setIsEditModalOpen(false)}
               >
                 Batal
               </Button>
@@ -819,7 +612,7 @@ const handleDownload = () => {
       <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Upload Pertanyaan Survey dari Excel</DialogTitle>
+            <DialogTitle>Upload Survey dari Excel</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div
@@ -856,16 +649,19 @@ const handleDownload = () => {
               <p>
                 <strong>Format Excel yang diperlukan:</strong>
               </p>
-              <div className="p-4 border rounded-lg bg-blue-50">
-                      <h4 className="font-medium text-sm mb-2">Template Excel:</h4>
-                      <button
-                        onClick={handleDownload}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <Download size={16} />
-                        Download Template Excel
-                      </button>
-                    </div>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>
+                  Kolom <strong>title</strong> (wajib): Judul survey
+                </li>
+                <li>
+                  Kolom <strong>description</strong> (opsional): Deskripsi
+                  survey
+                </li>
+                <li>
+                  Kolom <strong>id_academic_year</strong> (opsional): ID tahun
+                  akademik
+                </li>
+              </ul>
             </div>
 
             <div className="flex justify-end gap-2">
@@ -880,7 +676,7 @@ const handleDownload = () => {
                 Batal
               </Button>
               <Button
-                onClick={handleUploadQuestions}
+                onClick={handleUploadSurveys}
                 disabled={!uploadFile || uploading}
               >
                 {uploading ? (
@@ -900,4 +696,4 @@ const handleDownload = () => {
   );
 };
 
-export default DaftarPertanyaan;
+export default DaftarSurvei;

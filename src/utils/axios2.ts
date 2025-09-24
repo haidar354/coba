@@ -51,7 +51,7 @@ export default api;
 // Helper functions for common API operations
 export const agendaAPI = {
   // Get all agendas with optional filters
-  getAll: (params = {}) => api.get("/academic/agendas", { params }),
+  getAll: (params = {}) => api.get("/academic/agendas?limit=100", { params }),
 
   // Get agenda by ID
   getById: (id) => api.get(`/academic/agendas/${id}`),

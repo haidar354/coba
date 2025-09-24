@@ -21,5 +21,5 @@ export const getAllData = async <T>(
 ): Promise<T> => {
   const uri = buildUri(endpoint, query);
   const response = await api.get<T>(uri);
-  return response.data;
+  return response;
 };

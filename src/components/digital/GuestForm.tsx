@@ -293,7 +293,7 @@ export const GuestForm = ({ setHotReloadGuest }) => {
         </div>
 
         <div className="text-center">
-          <a href="/dashboard">
+          <a href="/tu/dashboard">
             <button className="text-primary hover:text-primary/80 signage-text-base font-medium">
               Keluar Dari Papan Informasi
             </button>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -14,6 +14,7 @@ import {
   Library,
   Edit,
   Clock,
+  SquareStack,
 } from "lucide-react";
 import educationIllustration from "../assets/logo-web-smk4-Photoroom.png";
 import { NavLink, useLocation } from "react-router-dom";
@@ -31,8 +32,12 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { useNavigate } from "react-router-dom";
 const menuItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Siswa", url: "/siswa", icon: GraduationCap },
@@ -54,7 +59,8 @@ const menuItems = [
       { title: "Hasil Survei", url: "/survei/hasil" },
     ],
   },
-  { title: "Manajemen Role", url: "/manajemen-role", icon: Users },
+  { title: "Manajemen Users", url: "/manajemen-user", icon: Users },
+  { title: "Manajemen Roles", url: "/manajemen-role", icon: SquareStack },
 ];
 
 export function AppSidebar() {
@@ -64,10 +70,77 @@ export function AppSidebar() {
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const collapsed = state === "collapsed";
 
+  const navigate = useNavigate();
+  const [rule, setRule] = useState(null);
+
+  useEffect(() => {
+    try {
+      // Cek apakah localStorage tersedia dan ada data
+      const roleData = localStorage.getItem("role");
+      if (!roleData) {
+        setRule(null); // atau default value yang sesuai
+        return;
+      }
+
+      // Parse JSON dengan error handling
+      const parsedRole = JSON.parse(roleData);
+
+      // Validasi apakah parsedRole adalah array
+      if (!Array.isArray(parsedRole)) {
+        console.warn("Role data is not an array");
+        setRule(null);
+        return;
+      }
+      // const ruleTable = parsedRole.find(
+      //   (r) => r && r.resource && r.resource.name == "teachers"
+      // );
+      // Cari rule dengan pengecekan resource
+
+      setRule(parsedRole || null);
+      const filterMenuItems = (menuItems, permissions) => {
+        // Cari aturan untuk resource "teachers" dan role "Kepala Sekolah" (id_role: 2)
+        const teacherPermission = permissions.find(
+          (perm) => perm.resource.name === "teachers" && perm.id_role === 2
+        );
+  
+        // Filter menuItems
+        return menuItems.filter((item) => {
+          // Jika item adalah "Guru" dan can_read untuk "teachers" adalah false, skip item ini
+          if (item.title === "Guru" && teacherPermission?.can_read === false) {
+            return false;
+          }
+          // Jika item memiliki submenu, filter submenu-nya juga (jika perlu)
+          if (item.submenu) {
+            return true; // Tetap tampilkan item dengan submenu, sesuaikan jika ada aturan tambahan
+          }
+          return true; // Tampilkan item lain
+        });
+      };
+      const filteredMenuItems = filterMenuItems(menuItems, parsedRole);
+  
+      // Output hasil filter
+      console.log("asdasd",filteredMenuItems);
+    } catch (error) {
+      console.error("Error parsing role data from localStorage:", error);
+      setRule(null);
+    }
+  }, [navigate]);
+  useEffect(() => {
+    
+  }, [navigate,rule ]);
+
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/50";
-
+    isActive
+      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+      : "hover:bg-sidebar-accent/50";
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // Jika token tidak ada, redirect ke halaman login
+      window.location.href = "/tu/login";
+    }
+  }, []);
   return (
     <Sidebar className="bg-blue-sidebar border-r border-sidebar-border">
       <SidebarContent>

@@ -7,166 +7,61 @@ const UploadModal = ({ onClose, onUploadSuccess }) => {
     setSelectedFile(e.target.files[0]);
   };
 
-  const processExcelFile = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: "array" });
-
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-
-          const excelData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-          resolve(excelData);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = () => reject(new Error("Error reading file"));
-      reader.readAsArrayBuffer(file);
-    });
-  };
-
   const handleUpload = async () => {
     if (!selectedFile) {
-      alert("Pilih file terlebih dahulu!");
+      alert("Pilih file terlebih dahulu");
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("folder_name", "data_presensi/siswa");
 
-      if (
-        selectedFile.name.endsWith(".xlsx") ||
-        selectedFile.name.endsWith(".xls")
-      ) {
-        const excelData = await processExcelFile(selectedFile);
+      const response = await api.post("/api/upload/excel", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
 
-        // Transform Excel data to attendance format with required time field
-        const attendanceRecords = excelData.map((row) => ({
-          id_user: parseInt(row.ID_USER || row.id_user),
-          id_class: parseInt(row.ID_CLASS || row.id_class),
-          id_role: parseInt(row.ID_ROLE || row.id_role || 4), // Default to student role
-          date:
-            row.TANGGAL || row.date || new Date().toISOString().split("T")[0],
-          // time: row.WAKTU || row.time || "08:00", // Add required time field
-          status: (row.STATUS || row.status || "hadir")
-            .split(",")
-            .map((s) => s.trim()),
-          information: row.KETERANGAN || row.information || "-",
-        }));
-
-        // Based on the API error, it expects either:
-        // 1. type: "standard" with attendances array
-        // 2. Direct attendances array
-
-        // Try the standard format first
-        const uploadData = {
-          type: "standard",
-          attendances: attendanceRecords,
-        };
-
-        console.log("Sending upload data:", uploadData);
-
-        const response = await api.post("/api/attendance/bulk", uploadData);
-
-        if (response.data && response.data.success !== false) {
-          const created = response.data.data?.created?.length || 0;
-          const errors = response.data.data?.errors?.length || 0;
-
-          alert(
-            `Upload berhasil! ${created} presensi berhasil ditambahkan` +
-              (errors > 0 ? `, ${errors} gagal.` : ".")
-          );
-          onUploadSuccess && onUploadSuccess();
+      if (response.status === 200) {
+        const responseada = await api.post("/api/attendance/bulk", {
+          type: "excel",
+          data: response.data,
+        });
+        if (responseada.status === 201) {
+          alert(`Upload berhasil!`);
           onClose();
-        } else {
-          throw new Error(response.data.error?.message || "Upload gagal");
         }
       }
     } catch (error) {
-      console.error("Upload error:", error);
-
-      // Show more detailed error message
-      let errorMessage = "Gagal upload file: ";
-      if (error.response?.data?.error?.message) {
-        errorMessage += error.response.data.error.message;
-      } else if (error.message) {
-        errorMessage += error.message;
+      if (error.response) {
+        alert("Upload gagal: " + error.response.data.message);
       } else {
-        errorMessage += "Terjadi kesalahan yang tidak diketahui";
+        alert("Error: " + error.message);
       }
-
-      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
+ 
+  const handleDownload = () => {
+    // Create a temporary link element to trigger download
+    const link = document.createElement("a");
+    link.href = "/tu/file_template/Template%20Presensi%20Siswa%20-%20Harian.xlsx";
+    link.download = "template_presensi_siswa.xlsx";
+    link.target = "_blank";
 
-  const downloadTemplate = () => {
-    try {
-      if (!window.XLSX) {
-        throw new Error("Library XLSX tidak tersedia");
-      }
-
-      const wb = window.XLSX.utils.book_new();
-
-      // Template data
-      const templateData = [
-        {
-          ID_USER: "23",
-          ID_CLASS: "12",
-          ID_ROLE: "4",
-          TANGGAL: "2025-09-21",
-          STATUS: "hadir",
-          KETERANGAN: "",
-        },
-        {
-          ID_USER: "24",
-          ID_CLASS: "12",
-          ID_ROLE: "4",
-          TANGGAL: "2025-09-21",
-          STATUS: "sakit",
-          KETERANGAN: "Demam tinggi",
-        },
-        {
-          ID_USER: "25",
-          ID_CLASS: "12",
-          ID_ROLE: "4",
-          TANGGAL: "2025-09-21",
-          STATUS: "izin",
-          KETERANGAN: "Keperluan keluarga",
-        },
-      ];
-
-      const ws = window.XLSX.utils.json_to_sheet(templateData);
-
-      const colWidths = [
-        { wch: 10 }, // ID_USER
-        { wch: 10 }, // ID_CLASS
-        { wch: 10 }, // ID_ROLE
-        { wch: 12 }, // TANGGAL
-        { wch: 15 }, // STATUS
-        { wch: 30 }, // KETERANGAN
-      ];
-      ws["!cols"] = colWidths;
-
-      window.XLSX.utils.book_append_sheet(wb, ws, "Template Presensi");
-
-      const filename = `Template_Upload_Presensi.xlsx`;
-      window.XLSX.writeFile(wb, filename);
-
-      alert(`Template "${filename}" berhasil didownload!`);
-    } catch (error) {
-      console.error("Download template error:", error);
-      alert("Gagal download template: " + error.message);
-    }
+    // Append to body, click, and remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
-
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
@@ -193,20 +88,13 @@ const UploadModal = ({ onClose, onUploadSuccess }) => {
 
       <div className="p-4 border rounded-lg bg-blue-50">
         <h4 className="font-medium text-sm mb-2">Format Template Excel:</h4>
-        <ul className="text-xs text-muted-foreground space-y-1 mb-3">
-          <li>
-            • Kolom: ID_USER, ID_CLASS, ID_ROLE, TANGGAL, STATUS, KETERANGAN
-          </li>
-          <li>• Format Tanggal: YYYY-MM-DD (contoh: 2025-09-21)</li>
-          <li>• Status: hadir, sakit, izin, alpha, terlambat, cuti, dinas</li>
-          <li>
-            • Status dapat multiple dipisah koma (contoh: hadir,terlambat)
-          </li>
-        </ul>
-        <Button variant="outline" size="sm" onClick={downloadTemplate}>
-          <Download className="h-4 w-4 mr-2" />
-          Download Template
-        </Button>
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Download size={16} />
+          Download Template Excel
+        </button>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
@@ -386,7 +274,7 @@ const AddAttendanceModal = ({ onClose, onSave }) => {
   const [formData, setFormData] = useState({
     id_user: "",
     id_class: "",
-    id_role: "4", // Default to student
+    id_role: 4, // Default to student
     date: new Date().toISOString().split("T")[0],
     status: ["hadir"],
     information: "",
@@ -464,7 +352,8 @@ const AddAttendanceModal = ({ onClose, onSave }) => {
       alert("Mohon lengkapi semua field yang wajib diisi!");
       return;
     }
-
+    formData.time = formData.date.toString().split("T")[1] || "00:00:00";
+    formData.date = formData.date.toString().split("T")[0] || "00:00:00";
     try {
       setIsLoading(true);
 
@@ -533,15 +422,23 @@ const AddAttendanceModal = ({ onClose, onSave }) => {
           />
         </div>
 
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium mb-2">Tanggal *</label>
           <Input
             type="date"
             value={formData.date}
             onChange={(e) => handleInputChange("date", e.target.value)}
           />
-        </div>
+        </div> */}
 
+        <div>
+          <label className="block text-sm font-medium mb-2">Waktu Mulai</label>
+          <Input
+            type="datetime-local"
+            value={formData.date}
+            onChange={(e) => handleInputChange("date", e.target.value)}
+          />
+        </div>
         <div>
           <label className="block text-sm font-medium mb-2">
             Status Presensi *
@@ -818,7 +715,7 @@ const AttendanceDetailModal = ({ onClose, classId, className }) => {
       const params = {
         include_relations: true,
         id_class: classId,
-        limit: 10000, // Get all records for this class
+        limit: 100, // Get all records for this class
       };
 
       if (dateFilter) {
@@ -1114,7 +1011,7 @@ const DownloadModal = ({ onClose }) => {
   const fetchAllAttendanceData = async () => {
     try {
       const params = {
-        limit: 10000,
+        limit: 100,
         page: 1,
       };
 
@@ -1572,7 +1469,7 @@ export default function Presensi() {
               <span className="text-sm font-medium">entries</span>
             </div>
 
-            <div className="relative">
+            {/* <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placehDolder="Cari nama kelas..."
@@ -1580,7 +1477,7 @@ export default function Presensi() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-            </div>
+            </div> */}
           </div>
 
           {loading ? (

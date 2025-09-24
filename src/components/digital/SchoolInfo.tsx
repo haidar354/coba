@@ -129,15 +129,6 @@ export const SchoolInfo = ({ hotReloadGuest }) => {
 
         <div className="flex items-start justify-between gap-6">
           <div className="flex items-start gap-4 flex-1">
-            <div className="text-4xl">🏫</div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">
-                Selamat Datang di
-              </p>
-              <h2 className="text-2xl font-bold text-card-foreground">
-                SEKOLAH KARSA
-              </h2>
-            </div>
           </div>
 
           <div className="bg-primary rounded-lg p-4 text-primary-foreground min-w-[280px]">

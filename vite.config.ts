@@ -13,8 +13,8 @@ export default defineConfig(({ mode }) => ({
     // Proxy configuration (equivalent to Next.js rewrites)
     proxy: {
       "/api/v1": {
-        target: "https://api-v1-production-1b72.up.railway.app/",
-        // target: "https://website-sekolahku-be.up.railway.app/",
+        // target: "https://api-v1-production-1b72.up.railway.app/",
+        target: "https://website-sekolahku-be.up.railway.app",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/v1/, ""),
         // For local development, uncomment below:

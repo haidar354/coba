@@ -615,34 +615,6 @@ export default function Kelas() {
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total Kelas"
-          value={pagination.total_items || 0}
-          icon={BookOpen}
-          color="blue"
-        />
-        <StatsCard
-          title="Jurusan"
-          value={departments.length}
-          icon={GraduationCap}
-          color="green"
-        />
-        <StatsCard
-          title="Tahun Ajaran"
-          value={academicYears.length}
-          icon={Users}
-          color="purple"
-        />
-        <StatsCard
-          title="Halaman"
-          value={`${currentPage}/${pagination.total_pages || 1}`}
-          icon={FileSpreadsheet}
-          color="orange"
-        />
-      </div>
-
       {/* Error Alert */}
       {error && (
         <Alert className="border-red-200 bg-red-50">

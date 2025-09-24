@@ -23,6 +23,11 @@ const LoginForm = () => {
         password: "Admin12345",
       });
       localStorage.setItem("token", response.data.token);
+      localStorage.setItem("id_users", response.data.user.id);
+      const responseRule = await api.get(
+        `/api/role/management?limit=no_limit&role=${response.data.user.id_role}&include_relations=true`
+      );
+      localStorage.setItem("role", JSON.stringify(responseRule.data));
       setIsloading(false);
       navigate("/dashboard");
       return response.data;

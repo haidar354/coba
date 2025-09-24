@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import * as XLSX from "xlsx";
-import surveyService from "@/services/surveyService";
+import api from "@/utils/axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,8 +39,40 @@ import {
   Search,
 } from "lucide-react";
 
+interface AcademicYear {
+  id: number;
+  year: string;
+  is_active: boolean;
+}
+
+interface Survey {
+  id: number;
+  title: string;
+  description: string | null;
+  id_academic_year: number;
+  created_at: string;
+  updated_at: string;
+  academic_year: AcademicYear;
+}
+
+interface FormData {
+  title: string;
+  description: string;
+  id_academic_year: string;
+}
+
+interface Pagination {
+  current_page: number;
+  total_pages: number;
+  total_items: number;
+  items_per_page: number;
+  has_next_page: boolean;
+  has_prev_page: boolean;
+}
+
 const DaftarSurvei = () => {
-  const [surveys, setSurveys] = useState([]);
+  const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,34 +81,57 @@ const DaftarSurvei = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [selectedSurvey, setSelectedSurvey] = useState(null);
-  const [uploadFile, setUploadFile] = useState(null);
+  const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const { toast } = useToast();
 
   // Form states
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: "",
     description: "",
     id_academic_year: "",
   });
 
+  // Fetch academic years
+  const fetchAcademicYears = useCallback(async () => {
+    try {
+      const response = await api.get("/api/academic/years", {
+        params: { limit: 100 },
+      });
+      setAcademicYears(response.data || []);
+    } catch (error) {
+      console.error("Error fetching academic years:", error);
+    }
+  }, []);
+
   // Fetch surveys
   const fetchSurveys = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await surveyService.getAllSurveys({
+      const params: any = {
         page: currentPage,
         limit: itemsPerPage,
-        search: searchTerm,
-      });
+      };
+
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
+      const response = await api.get("/api/academic/surveys", { params });
 
       setSurveys(response.data || []);
-      setTotalPages(JSON.parse(response.headers["x-pagination"]).total_pages || 1);
-    } catch (error) {
-      if (searchTerm.trim().length > 2) {
-        console.error("Error fetching surveys:", error);
+
+      if (response.headers["x-pagination"]) {
+        setTotalPages(
+          JSON.parse(response.headers["x-pagination"]).total_pages || 1
+        );
+      }
+    } catch (error: any) {
+      console.error("Error fetching surveys:", error);
+      if (error.response?.status !== 404) {
         toast({
           title: "Error",
           description: "Gagal memuat data survey",
@@ -90,18 +144,26 @@ const DaftarSurvei = () => {
   }, [currentPage, itemsPerPage, searchTerm, toast]);
 
   useEffect(() => {
+    fetchAcademicYears();
+  }, [fetchAcademicYears]);
+
+  useEffect(() => {
     fetchSurveys();
   }, [fetchSurveys]);
 
   // Handle search with debounce
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setCurrentPage(1);
-      fetchSurveys();
-    }, 500);
+    let timeoutId: NodeJS.Timeout;
+    if (searchTerm !== "") {
+      timeoutId = setTimeout(() => {
+        setCurrentPage(1);
+        fetchSurveys();
+        setItemsPerPage(100);
+      }, 500);
+    }
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, fetchSurveys]);
 
   // Reset form
   const resetForm = () => {
@@ -113,7 +175,7 @@ const DaftarSurvei = () => {
   };
 
   // Handle create survey
-  const handleCreateSurvey = async (e) => {
+  const handleCreateSurvey = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) {
       toast({
@@ -124,28 +186,47 @@ const DaftarSurvei = () => {
       return;
     }
 
+    if (!formData.id_academic_year) {
+      toast({
+        title: "Error",
+        description: "Tahun akademik harus dipilih",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      await surveyService.createSurvey(formData);
+      const payload = {
+        title: formData.title,
+        description: formData.description || null,
+        id_academic_year: parseInt(formData.id_academic_year),
+      };
+
+      await api.post("/api/academic/surveys", payload);
+
       toast({
         title: "Berhasil",
         description: "Survey berhasil dibuat",
       });
+
       setIsCreateModalOpen(false);
       resetForm();
       fetchSurveys();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating survey:", error);
       toast({
         title: "Error",
-        description: "Gagal membuat survey",
+        description: error.response?.data?.detail || "Gagal membuat survey",
         variant: "destructive",
       });
     }
   };
 
   // Handle edit survey
-  const handleEditSurvey = async (e) => {
+  const handleEditSurvey = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedSurvey) return;
+
     if (!formData.title.trim()) {
       toast({
         title: "Error",
@@ -155,45 +236,64 @@ const DaftarSurvei = () => {
       return;
     }
 
+    if (!formData.id_academic_year) {
+      toast({
+        title: "Error",
+        description: "Tahun akademik harus dipilih",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      await surveyService.updateSurvey(selectedSurvey.id, formData);
+      const payload = {
+        title: formData.title,
+        description: formData.description || null,
+        id_academic_year: parseInt(formData.id_academic_year),
+      };
+
+      await api.put(`/api/academic/surveys/${selectedSurvey.id}`, payload);
+
       toast({
         title: "Berhasil",
         description: "Survey berhasil diupdate",
       });
+
       setIsEditModalOpen(false);
       resetForm();
       setSelectedSurvey(null);
       fetchSurveys();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating survey:", error);
       toast({
         title: "Error",
-        description: "Gagal mengupdate survey",
+        description: error.response?.data?.detail || "Gagal mengupdate survey",
         variant: "destructive",
       });
     }
   };
 
   // Handle delete survey
-  const handleDeleteSurvey = async (survey) => {
+  const handleDeleteSurvey = async (survey: Survey) => {
     if (
       window.confirm(
         `Apakah Anda yakin ingin menghapus survey "${survey.title}"?`
       )
     ) {
       try {
-        await surveyService.deleteSurvey(survey.id);
+        await api.delete(`/api/academic/surveys/${survey.id}`);
+
         toast({
           title: "Berhasil",
           description: "Survey berhasil dihapus",
         });
+
         fetchSurveys();
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error deleting survey:", error);
         toast({
           title: "Error",
-          description: "Gagal menghapus survey",
+          description: error.response?.data?.detail || "Gagal menghapus survey",
           variant: "destructive",
         });
       }
@@ -201,7 +301,7 @@ const DaftarSurvei = () => {
   };
 
   // Handle file upload
-  const onDrop = useCallback((acceptedFiles) => {
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
       setUploadFile(file);
@@ -232,15 +332,63 @@ const DaftarSurvei = () => {
 
     setUploading(true);
     try {
-      const response = await surveyService.uploadSurveysXLSX(uploadFile);
+      const formData = new FormData();
+      formData.append("file", uploadFile);
+      // Note: Based on the API structure, you might need to implement XLSX upload endpoint
+      // For now, this is a placeholder - you may need to parse XLSX client-side or create a new endpoint
+      const handleUpload = async () => {
+        setLoading(true);
+
+        try {
+          const formData = new FormData();
+          formData.append("file", uploadFile);
+          formData.append("folder_name", "data/survey");
+
+          const response = await api.post("/api/upload/excel", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Accept: "application/json",
+              "X-Requested-With": "XMLHttpRequest",
+            },
+          });
+
+          if (response.status === 200) {
+            console.log("Response data:", response);
+            const responseada = await api.post(
+              "/api/academic/excel/surveys",
+              response.data
+            );
+            if (responseada.status === 201) {
+              alert(`Upload berhasil!`);
+              toast({
+                title: "Berhasil",
+                description: "Survey berhasil diupload",
+              });
+            }
+          }
+        } catch (error) {
+          if (error.response) {
+            alert("Upload gagal: " + error.response.data.message);
+            toast({
+              title: "Gagal",
+              description: "Survey gagal diupload",
+            });
+          } else {
+            alert("Error: " + error.message);
+          }
+        } finally {
+          setLoading(false);
+        }
+      };
       toast({
         title: "Berhasil",
-        description: response.data.message,
+        description: "Survey berhasil diupload",
       });
+      
+      handleUpload();
       setIsUploadModalOpen(false);
       setUploadFile(null);
-      fetchSurveys();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading surveys:", error);
       toast({
         title: "Error",
@@ -251,32 +399,208 @@ const DaftarSurvei = () => {
       setUploading(false);
     }
   };
+const handleDownload = () => {
+  // Create a temporary link element to trigger download
+  const link = document.createElement("a");
+  link.href = "/tu/file_template/Template%20Survey.xlsx";
+  link.download = "template_survey.xlsx";
+  link.target = "_blank";
+
+  // Append to body, click, and remove
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
   // Handle download surveys
   const handleDownloadSurveys = async () => {
+    setDownloading(true);
+    const fetchAllAcademicSurveysData = async () => {
+      try {
+        const params = {
+          limit: 100,
+          page: 1,
+        };
+
+        const response = await api.get("/api/academic/surveys", { params });
+
+        let surveysData = [];
+        if (Array.isArray(response.data)) {
+          surveysData = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          surveysData = response.data.data;
+        }
+
+        return surveysData;
+      } catch (error) {
+        console.error("Error fetching academic surveys data:", error);
+        throw error;
+      }
+    };
+
+    const generateExcelFile = (surveysData) => {
+      try {
+        if (
+          !surveysData ||
+          !Array.isArray(surveysData) ||
+          surveysData.length === 0
+        ) {
+          throw new Error("Data survey akademik tidak valid atau kosong");
+        }
+
+        if (!window.XLSX) {
+          throw new Error(
+            "Library XLSX tidak tersedia. Pastikan SheetJS sudah dimuat."
+          );
+        }
+
+        const wb = window.XLSX.utils.book_new();
+
+        const excelData = surveysData.map((item, index) => {
+          if (!item || typeof item !== "object") {
+            console.warn(`Data survey pada index ${index} tidak valid:`, item);
+            return {
+              NO: index + 1,
+              ID: "Data tidak valid",
+              JUDUL: "N/A",
+              DESKRIPSI: "N/A",
+              ID_TAHUN_AJARAN: "N/A",
+              TAHUN_AJARAN: "N/A",
+              STATUS_AKTIF: "N/A",
+              TANGGAL_DIBUAT: "N/A",
+              TANGGAL_DIUPDATE: "N/A",
+            };
+          }
+
+          return {
+            NO: index + 1,
+            ID: item.id || "N/A",
+            JUDUL: item.title || "N/A",
+            DESKRIPSI: item.description || "N/A",
+            ID_TAHUN_AJARAN: item.id_academic_year || "N/A",
+            TAHUN_AJARAN: item.academic_year?.year || "N/A",
+            STATUS_AKTIF: item.academic_year?.is_active ? "Ya" : "Tidak",
+            TANGGAL_DIBUAT: item.created_at
+              ? new Date(item.created_at).toLocaleString("id-ID")
+              : "N/A",
+            TANGGAL_DIUPDATE: item.updated_at
+              ? new Date(item.updated_at).toLocaleString("id-ID")
+              : "N/A",
+          };
+        });
+
+        const ws = window.XLSX.utils.json_to_sheet([]);
+
+        const colWidths = [
+          { wch: 5 }, // NO
+          { wch: 8 }, // ID
+          { wch: 30 }, // JUDUL
+          { wch: 40 }, // DESKRIPSI
+          { wch: 15 }, // ID_TAHUN_AJARAN
+          { wch: 15 }, // TAHUN_AJARAN
+          { wch: 12 }, // STATUS_AKTIF
+          { wch: 20 }, // TANGGAL_DIBUAT
+          { wch: 20 }, // TANGGAL_DIUPDATE
+        ];
+        ws["!cols"] = colWidths;
+
+        // Add title
+        window.XLSX.utils.sheet_add_aoa(ws, [["DATA SURVEY AKADEMIK"]], {
+          origin: "A1",
+        });
+        window.XLSX.utils.sheet_add_aoa(ws, [[""]], { origin: "A2" });
+
+        const headers = [
+          "NO",
+          "ID",
+          "JUDUL",
+          "DESKRIPSI",
+          "ID TAHUN AJARAN",
+          "TAHUN AJARAN",
+          "STATUS AKTIF",
+          "TANGGAL DIBUAT",
+          "TANGGAL DIUPDATE",
+        ];
+        window.XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A3" });
+
+        const dataRows = excelData.map((row) => [
+          row.NO,
+          row.ID,
+          row.JUDUL,
+          row.DESKRIPSI,
+          row.ID_TAHUN_AJARAN,
+          row.TAHUN_AJARAN,
+          row.STATUS_AKTIF,
+          row.TANGGAL_DIBUAT,
+          row.TANGGAL_DIUPDATE,
+        ]);
+
+        window.XLSX.utils.sheet_add_aoa(ws, dataRows, { origin: "A4" });
+
+        const range = window.XLSX.utils.encode_range({
+          s: { c: 0, r: 0 },
+          e: { c: 8, r: 2 + excelData.length },
+        });
+        ws["!ref"] = range;
+
+        // Merge title cells
+        ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }];
+
+        // Style title
+        const titleCell = "A1";
+        if (!ws[titleCell])
+          ws[titleCell] = { v: "DATA SURVEY AKADEMIK", t: "s" };
+        ws[titleCell].s = {
+          font: { bold: true, sz: 16 },
+          alignment: { horizontal: "center", vertical: "center" },
+          fill: { fgColor: { rgb: "CCCCCC" } },
+        };
+
+        window.XLSX.utils.book_append_sheet(wb, ws, "Data Survey Akademik");
+
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}-${String(
+          now.getMonth() + 1
+        ).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        const filename = `Data_Survey_Akademik_${dateStr}.xlsx`;
+
+        window.XLSX.writeFile(wb, filename);
+        return filename;
+      } catch (error) {
+        console.error("Detailed error in generateExcelFile:", error);
+        throw new Error("Gagal membuat file Excel: " + error.message);
+      }
+    };
+
     try {
-      await surveyService.downloadSurveysXLSX({ search: searchTerm });
-      toast({
-        title: "Berhasil",
-        description: "File Excel berhasil didownload",
-      });
+      setDownloading(true);
+      const surveysData = await fetchAllAcademicSurveysData();
+
+      if (surveysData.length === 0) {
+        alert("Tidak ada data survey akademik untuk didownload");
+        return;
+      }
+
+      const filename = generateExcelFile(surveysData);
+      alert(
+        `File "${filename}" berhasil didownload!\nTotal data: ${surveysData.length} survey`
+      );
+      setDownloading(false);
     } catch (error) {
-      console.error("Error downloading surveys:", error);
-      toast({
-        title: "Error",
-        description: "Gagal mendownload file",
-        variant: "destructive",
-      });
+      console.error("Download error:", error);
+      alert("Gagal mendownload data: " + error.message);
+    } finally {
+      setDownloading(false);
     }
   };
 
   // Open edit modal
-  const openEditModal = (survey) => {
+  const openEditModal = (survey: Survey) => {
     setSelectedSurvey(survey);
     setFormData({
       title: survey.title,
       description: survey.description || "",
-      id_academic_year: survey.id_academic_year || "",
+      id_academic_year: survey.id_academic_year.toString(),
     });
     setIsEditModalOpen(true);
   };
@@ -291,18 +615,23 @@ const DaftarSurvei = () => {
             <DialogTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
                 <Upload className="w-4 h-4" />
-                Upload XLSX
+                Upload
               </Button>
             </DialogTrigger>
           </Dialog>
 
           <Button
             onClick={handleDownloadSurveys}
+            disabled={downloading}
             variant="outline"
             className="flex items-center gap-2"
           >
-            <Download className="w-4 h-4" />
-            Download XLSX
+            {downloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Download
           </Button>
 
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
@@ -395,7 +724,7 @@ const DaftarSurvei = () => {
                         </TableCell>
                         <TableCell>{survey.description || "-"}</TableCell>
                         <TableCell>
-                          {survey.academic_year.year || "-"}
+                          {survey.academic_year?.year || "-"}
                         </TableCell>
                         <TableCell>
                           {new Date(survey.created_at).toLocaleDateString(
@@ -491,21 +820,33 @@ const DaftarSurvei = () => {
               />
             </div>
             <div>
-              <Label htmlFor="academic_year">ID Tahun Akademik</Label>
-              <Input
-                id="academic_year"
+              <Label htmlFor="academic_year">Tahun Akademik *</Label>
+              <Select
                 value={formData.id_academic_year}
-                onChange={(e) =>
-                  setFormData({ ...formData, id_academic_year: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, id_academic_year: value })
                 }
-                placeholder="Masukkan ID tahun akademik"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih tahun akademik" />
+                </SelectTrigger>
+                <SelectContent>
+                  {academicYears.map((year) => (
+                    <SelectItem key={year.id} value={year.id.toString()}>
+                      {year.year} {year.is_active ? "(Aktif)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsCreateModalOpen(false)}
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  resetForm();
+                }}
               >
                 Batal
               </Button>
@@ -547,21 +888,34 @@ const DaftarSurvei = () => {
               />
             </div>
             <div>
-              <Label htmlFor="edit-academic_year">ID Tahun Akademik</Label>
-              <Input
-                id="edit-academic_year"
+              <Label htmlFor="edit-academic_year">Tahun Akademik *</Label>
+              <Select
                 value={formData.id_academic_year}
-                onChange={(e) =>
-                  setFormData({ ...formData, id_academic_year: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, id_academic_year: value })
                 }
-                placeholder="Masukkan ID tahun akademik"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih tahun akademik" />
+                </SelectTrigger>
+                <SelectContent>
+                  {academicYears.map((year) => (
+                    <SelectItem key={year.id} value={year.id.toString()}>
+                      {year.year} {year.is_active ? "(Aktif)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsEditModalOpen(false)}
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  resetForm();
+                  setSelectedSurvey(null);
+                }}
               >
                 Batal
               </Button>
@@ -610,21 +964,18 @@ const DaftarSurvei = () => {
 
             <div className="text-sm text-gray-600">
               <p>
-                <strong>Format Excel yang diperlukan:</strong>
+                <strong>Template Excel :</strong>
               </p>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>
-                  Kolom <strong>title</strong> (wajib): Judul survey
-                </li>
-                <li>
-                  Kolom <strong>description</strong> (opsional): Deskripsi
-                  survey
-                </li>
-                <li>
-                  Kolom <strong>id_academic_year</strong> (opsional): ID tahun
-                  akademik
-                </li>
-              </ul>
+              <div className="p-4 border rounded-lg bg-blue-50">
+                <h4 className="font-medium text-sm mb-2">Template Excel:</h4>
+                <button
+                  onClick={handleDownload}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Download size={16} />
+                  Download Template Excel
+                </button>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
