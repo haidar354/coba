@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Search, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -50,50 +50,68 @@ export default function ManajemenUsers() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Debounce search query
   useEffect(() => {
-    const handler = setTimeout(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    const timeout = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      setCurrentPage(1); // Reset ke halaman 1 saat pencarian berubah
+      setCurrentPage(1);
     }, 500);
-    return () => clearTimeout(handler);
+
+    setSearchTimeout(timeout);
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
   }, [searchQuery]);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
+        // Ubah per_page menjadi limit untuk konsistensi dengan backend (seperti kode Guru)
         const queryParams = new URLSearchParams({
           include_role: "true",
           page: currentPage.toString(),
-          per_page: itemsPerPage.toString(),
+          limit: itemsPerPage.toString(), // Diubah dari per_page ke limit
           ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
         });
-        console.log("API Request URL:", `/api/users?${queryParams.toString()}`);
-        console.log("Items per page sent:", itemsPerPage);
+        
+        console.log("API Request Params:", queryParams.toString()); // Debug log
+        console.log("Items per page sent:", itemsPerPage); // Debug log
+        
         const [usersResponse, rolesResponse, classesResponse] = await Promise.all([
           api.get(`/api/users?${queryParams.toString()}`),
           api.get("/api/role"),
           api.get("/api/classes")
         ]);
-        console.log("Total users received from API:", usersResponse.data.length);
-        console.log("Pagination header:", usersResponse.headers["x-pagination"]);
+
+        console.log("Users received:", usersResponse.data.length); // Debug log
+        console.log("Pagination data:", usersResponse.headers["x-pagination"]); // Debug log
+
         const paginationData = usersResponse.headers["x-pagination"]
           ? JSON.parse(usersResponse.headers["x-pagination"])
           : null;
-        console.log("Items per page in header:", paginationData?.items_per_page);
+
+        console.log("Actual items_per_page from API:", paginationData?.items_per_page); // Debug log
+
         setUsers(usersResponse.data.sort((a: User, b: User) => a.id - b.id));
         setRoles(rolesResponse.data.sort((a: Role, b: Role) => a.id - b.id));
         setClasses(classesResponse.data.sort((a: Class, b: Class) => a.id - b.id));
         setPagination(paginationData);
-        setLoading(false);
       } catch (err) {
         console.error("Error fetching data:", err);
+      } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [currentPage, itemsPerPage, debouncedSearchQuery]);
+  }, [currentPage, itemsPerPage, debouncedSearchQuery]); // Dependensi itemsPerPage untuk re-fetch saat berubah
 
   const handleAddUser = () => {
     navigate("/manajemen-user/tambah");
@@ -107,7 +125,26 @@ export default function ManajemenUsers() {
     if (confirm("Yakin ingin menghapus user ini?")) {
       api.delete(`/api/users/${id}`)
         .then(() => {
-          setUsers(users.filter((user) => user.id !== id));
+          // Re-fetch data setelah delete untuk update pagination
+          const fetchData = async () => {
+            try {
+              const queryParams = new URLSearchParams({
+                include_role: "true",
+                page: currentPage.toString(),
+                limit: itemsPerPage.toString(),
+                ...(debouncedSearchQuery && { search: debouncedSearchQuery }),
+              });
+              const usersResponse = await api.get(`/api/users?${queryParams.toString()}`);
+              const paginationData = usersResponse.headers["x-pagination"]
+                ? JSON.parse(usersResponse.headers["x-pagination"])
+                : null;
+              setUsers(usersResponse.data.sort((a: User, b: User) => a.id - b.id));
+              setPagination(paginationData);
+            } catch (err) {
+              console.error("Error after delete:", err);
+            }
+          };
+          fetchData();
         })
         .catch((err) => console.error("Error deleting user:", err));
     }
@@ -119,23 +156,26 @@ export default function ManajemenUsers() {
 
   const handleItemsPerPageChange = (value: string) => {
     const newItemsPerPage = Number(value);
-    console.log("New items per page selected:", newItemsPerPage);
+    console.log("Changing items per page to:", newItemsPerPage); // Debug log
     setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset ke halaman 1 saat itemsPerPage berubah
+    setCurrentPage(1); // Reset ke halaman 1
   };
 
+  // Modifikasi getPageNumbers untuk hanya tampilkan 3 angka (maxVisiblePages = 3)
   const getPageNumbers = () => {
     const totalPages = pagination?.total_pages || 1;
     const pageNumbers = [];
+    const maxVisiblePages = 3; // Batasi hanya 3 angka
 
-    let startPage = Math.max(1, currentPage - 1);
-    let endPage = Math.min(totalPages, currentPage + 1);
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
-    if (endPage - startPage < 2) {
+    // Adjust jika kurang dari maxVisiblePages
+    if (endPage - startPage + 1 < maxVisiblePages) {
       if (startPage === 1) {
-        endPage = Math.min(3, totalPages);
+        endPage = Math.min(maxVisiblePages, totalPages);
       } else if (endPage === totalPages) {
-        startPage = Math.max(1, totalPages - 2);
+        startPage = Math.max(1, totalPages - maxVisiblePages + 1);
       }
     }
 
@@ -146,7 +186,45 @@ export default function ManajemenUsers() {
     return pageNumbers;
   };
 
-  if (loading) return <div>Loading...</div>;
+  const renderUserData = (userData: { [key: string]: string | number }, classes: Class[]) => {
+    const classId = userData.id_class || userData.id_class === 0 ? userData.id_class : null;
+    const grade = classId ? classes.find((cls) => cls.id === classId)?.grade || "Tidak ada kelas" : null;
+  
+    const dataItems = [];
+    
+    if (userData.email) dataItems.push({ label: "Email", value: userData.email });
+    if (userData.phone) dataItems.push({ label: "Nomor", value: userData.phone });
+    if (userData.office) dataItems.push({ label: "Office", value: userData.office });
+    if (userData.department) dataItems.push({ label: "Department", value: userData.department });
+    if (userData.nip) dataItems.push({ label: "NIP", value: userData.nip });
+    if (grade) dataItems.push({ label: "Kelas", value: grade });
+    if (userData.nis) dataItems.push({ label: "NIS", value: userData.nis });
+  
+    if (dataItems.length === 0) {
+      return <span className="text-gray-400 text-xs">Tidak ada data</span>;
+    }
+  
+    return (
+      <table>
+          {dataItems.map((item, index) => (
+            <tr key={index}>
+              <td className="pr-2 text-gray-500 font-medium">{item.label}</td>
+              <td className="pr-2 text-gray-500 font-medium">:</td>
+              <td className="font-medium">{item.value}</td>
+            </tr>
+          ))}
+      </table>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500 mr-2" />
+        <span className="text-gray-500">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -160,32 +238,34 @@ export default function ManajemenUsers() {
 
       <Card>
         <CardContent className="p-6">
-          <div className="flex justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Tampilkan:</span>
-              <Select
-                value={itemsPerPage.toString()}
-                onValueChange={handleItemsPerPageChange}
-              >
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue placeholder={itemsPerPage} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                  
-                </SelectContent>
-              </Select>
-              <span className="text-sm text-muted-foreground">entri</span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Tampilkan</span>
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={handleItemsPerPageChange}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-gray-600">entri</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 placeholder="Cari nama..."
+                className="pl-10 w-64"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[200px]"
               />
             </div>
           </div>
@@ -193,86 +273,104 @@ export default function ManajemenUsers() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>No</TableHead>
-                <TableHead>Nama</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Aksi</TableHead>
+                <TableHead >No</TableHead>
+                <TableHead >Nama</TableHead>
+                <TableHead >Role</TableHead>
+                <TableHead >Data</TableHead>
+                <TableHead >Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user, index) => {
-                const roleName = roles.find((role) => role.id === user.id_role)?.name || "Unknown";
-                const userData = typeof user.data === "object" && user.data !== null ? user.data : {};
-                const classId = userData.id_class || userData.id_class === 0 ? userData.id_class : null;
-                const grade = classId ? classes.find((cls) => cls.id === classId)?.grade || "Tidak ada kelas" : null;
+              {users.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center py-8 text-gray-500"
+                  >
+                    {searchQuery
+                      ? "Tidak ada pengguna yang sesuai dengan pencarian"
+                      : "Belum ada data pengguna"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map((user, index) => {
+                  const roleName = roles.find((role) => role.id === user.id_role)?.name || "Unknown";
+                  const userData = typeof user.data === "object" && user.data !== null ? user.data : {};
 
-                let displayData = "<ul style='list-style-type: disc; padding-left: 20px;'>";
-                if (userData.email) displayData += `<li>Email      : ${userData.email}</li>`;
-                if (userData.phone) displayData += `<li>Nomor      : ${userData.phone}</li>`;
-                if (userData.office) displayData += `<li>Office     : ${userData.office}</li>`;
-                if (userData.department) displayData += `<li>Department : ${userData.department}</li>`;
-                if (userData.nip) displayData += `<li>NIP        : ${userData.nip}</li>`;
-                if (grade) displayData += `<li>Kelas      : ${grade}</li>`;
-                if (userData.nis) displayData += `<li>NIS        : ${userData.nis}</li>`;
-                displayData += "</ul>";
-
-                return (
-                  <TableRow key={user.id}>
-                    <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
-                    <TableCell>{user.full_name}</TableCell>
-                    <TableCell>{roleName}</TableCell>
-                    <TableCell dangerouslySetInnerHTML={{ __html: displayData }} />
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleEditUser(user.id)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => handleDeleteUser(user.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                  return (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {user.full_name}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {roleName}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {renderUserData(userData, classes)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEditUser(user.id)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
 
           <div className="flex items-center justify-between mt-6">
-            <div className="text-sm text-muted-foreground">
-              Menampilkan {(currentPage - 1) * itemsPerPage + 1} sampai{" "}
-              {Math.min(currentPage * itemsPerPage, pagination?.total_items || users.length)} dari{" "}
-              {pagination?.total_items || users.length} entri
+            <div className="text-sm text-gray-600">
+              {pagination?.total_items > 0 ? (
+                <>
+                  Menampilkan {(currentPage - 1) * itemsPerPage + 1} sampai{" "}
+                  {Math.min(currentPage * itemsPerPage, pagination.total_items)} dari{" "}
+                  {pagination.total_items} entri
+                </>
+              ) : (
+                "Tidak ada entri"
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(1)}
-                disabled={!pagination?.has_prev_page}
-              >
-                &lt;&lt;
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={!pagination?.has_prev_page}
-              >
-                &lt;
-              </Button>
-              <div className="flex gap-1">
+            {pagination?.total_pages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
                 {getPageNumbers().map((page) => (
                   <Button
                     key={page}
@@ -283,24 +381,25 @@ export default function ManajemenUsers() {
                     {page}
                   </Button>
                 ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === pagination?.total_pages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination?.total_pages || 1)}
+                  disabled={currentPage === pagination?.total_pages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={!pagination?.has_next_page}
-              >
-                &gt;
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(pagination?.total_pages || 1)}
-                disabled={!pagination?.has_next_page}
-              >
-                &gt;&gt;
-              </Button>
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>

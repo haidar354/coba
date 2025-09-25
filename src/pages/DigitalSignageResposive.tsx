@@ -620,7 +620,7 @@ const DigitalSignageOptimized = () => {
 
           {/* School Info & Guest Registration */}
           <div className="grid grid-cols-1 gap-8">
-            <SchoolInfo />
+            <SchoolInfo hotReloadGuest={hotReloadGuest} />
 
             {/* Guest Form Section */}
             <div className="signage-card bg-card rounded-2xl p-8 shadow-lg">

@@ -26,6 +26,7 @@ const SurveyForm = ({
   const [surveyQuestions, setSurveyQuestions] = useState([]);
   const [isLoading, setIsloading] = useState(false);
   const [isLoadingQuestion, setIsloadingQuestion] = useState(false);
+  const [test, setTest] = useState(false);
   useEffect(() => {
     const fetchData = async () => {
       setIsloading(true);
@@ -64,6 +65,7 @@ const SurveyForm = ({
     // setQuestion(question.question);
     // Handle form submission here
     setIsloadingQuestion(true);
+    setTest(id)
     try {
       const response = await api.get(`api/academic/questions?id_survey=${id}`);
       setQuestion(response.data);
@@ -154,7 +156,7 @@ const SurveyForm = ({
       </div>
     );
   return (
-    <div className=" bg-gray-100 flex items-center justify-center ">
+    <div className=" bg-gray-100 flex items-center justify-center max-h-[90vh] overflow-y-auto  ">
       <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full p-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -238,7 +240,7 @@ const SurveyForm = ({
                       onClick={() => handleAction(question.id)}
                       className="px-4 py-2 border-survey-button-cancel text-survey-button-cancel-text hover:bg-gray-100"
                     >
-                      {isLoadingQuestion ? (
+                      {isLoadingQuestion && test === question.id ? (
                         <div className="w-8 h-8 border-4 border-gray-300 rounded-full border-t-blue-500 animate-spin"></div>
                       ) : (
                         "Isi Survey"

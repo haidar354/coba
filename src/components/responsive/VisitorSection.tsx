@@ -170,7 +170,7 @@ export const VisitorSection = ({ hotReloadGuest, setHotReloadGuest }) => {
             <div className="flex flex-col items-center gap-2 ml-4">
               <div className="w-24 h-16 bg-muted/20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
                 <img
-                  src={`https://api-v1-production-1b72.up.railway.app/${visitor.signature}`}
+                  src={`https://website-sekolahku-be.up.railway.app/${visitor.signature}`}
                   alt="Tanda Tangan"
                   className="object-contain max-w-full max-h-full"
                   crossOrigin="anonymous"

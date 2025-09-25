@@ -52,10 +52,7 @@ export const useClasses = () => {
         if (response.headers["x-pagination"]) {
           setPagination(JSON.parse(response.headers["x-pagination"]));
         }
-        console.log(
-          "✅ Classes loaded successfully:",
-          response.data.length
-        );
+        console.log("✅ Classes loaded successfully:", response.data.length);
       } else {
         setClasses([]);
         console.log("⚠️ No classes data found");
@@ -93,7 +90,7 @@ export const useClasses = () => {
     try {
       console.log("📅 Loading academic years...");
       // Since there's no specific endpoint, we'll use mock data for now
-      // You might need to implement /api/academic-years endpoint
+      // You might need to implement /api//academic/years endpoint
       const response = await api.get("/api/academic/years", {
         params: { limit: 100 }, // Get all departments
       });

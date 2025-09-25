@@ -1,3 +1,4 @@
+// GuestForm.tsx (Made responsive: adjusted widths, heights, grids, fonts for sm/md/lg; signature canvas full width)
 import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,6 @@ export const GuestForm = ({ setHotReloadGuest }) => {
       signature: signatureData,
     }));
   };
-
 
   const handleSubmit = async () => {
     // Validasi form
@@ -161,16 +161,16 @@ export const GuestForm = ({ setHotReloadGuest }) => {
   };
 
   return (
-    <div className="space-y-8">
-      <p className="signage-text-base text-muted-foreground">
+    <div className="space-y-6 md:space-y-8">
+      <p className="signage-text-small sm:signage-text-base text-muted-foreground">
         Untuk melanjutkan silahkan isi data diri pada E-Guestbook dibawah ini.
       </p>
 
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         <div>
           <Label
             htmlFor="nama"
-            className="signage-text-base font-semibold text-card-foreground"
+            className="signage-text-small sm:signage-text-base font-semibold text-card-foreground"
           >
             Nama
           </Label>
@@ -179,14 +179,14 @@ export const GuestForm = ({ setHotReloadGuest }) => {
             placeholder="Masukan Nama Anda"
             value={formData.nama}
             onChange={(e) => handleInputChange("nama", e.target.value)}
-            className="mt-3 text-lg p-4"
+            className="mt-2 sm:mt-3 text-base sm:text-lg p-3 sm:p-4"
           />
         </div>
 
         <div>
           <Label
             htmlFor="instansi"
-            className="signage-text-base font-semibold text-card-foreground"
+            className="signage-text-small sm:signage-text-base font-semibold text-card-foreground"
           >
             Instansi
           </Label>
@@ -195,14 +195,14 @@ export const GuestForm = ({ setHotReloadGuest }) => {
             placeholder="Masukan Instansi"
             value={formData.instansi}
             onChange={(e) => handleInputChange("instansi", e.target.value)}
-            className="mt-3 text-lg p-4"
+            className="mt-2 sm:mt-3 text-base sm:text-lg p-3 sm:p-4"
           />
         </div>
 
         <div>
           <Label
             htmlFor="tujuan"
-            className="signage-text-base font-semibold text-card-foreground"
+            className="signage-text-small sm:signage-text-base font-semibold text-card-foreground"
           >
             Tujuan
           </Label>
@@ -211,23 +211,22 @@ export const GuestForm = ({ setHotReloadGuest }) => {
             placeholder="Masukan Tujuan / Kepentingan dari kunjungan Anda"
             value={formData.tujuan}
             onChange={(e) => handleInputChange("tujuan", e.target.value)}
-            className="mt-3 min-h-[120px] text-lg p-4"
+            className="mt-2 sm:mt-3 min-h-[100px] sm:min-h-[120px] text-base sm:text-lg p-3 sm:p-4"
           />
         </div>
 
         <div>
-          <Label className="signage-text-base font-semibold text-card-foreground mb-4 block">
+          <Label className="signage-text-small sm:signage-text-base font-semibold text-card-foreground mb-3 sm:mb-4 block">
             Tanda Tangan
           </Label>
-          <div className="border-2 border-dashed border-border rounded-xl p-6 bg-muted/30 relative">
+          <div className="border-2 border-dashed border-border rounded-xl p-4 sm:p-6 bg-muted/30 relative">
             {/* Signature Canvas */}
             <SignatureCanvas
               ref={signatureRef}
               penColor="black"
               canvasProps={{
-                width: 600,
-                height: 250,
-                className: "signature-canvas w-full h-40 border-0 rounded",
+                className:
+                  "signature-canvas w-full h-32 sm:h-40 border-0 rounded",
                 style: {
                   border: "none",
                   borderRadius: "12px",
@@ -242,7 +241,7 @@ export const GuestForm = ({ setHotReloadGuest }) => {
             <button
               type="button"
               onClick={clearSignature}
-              className="absolute top-3 right-3 w-10 h-10 bg-error hover:bg-error/80 rounded-full flex items-center justify-center text-error-foreground text-lg transition-colors"
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 w-8 h-8 sm:w-10 sm:h-10 bg-error hover:bg-error/80 rounded-full flex items-center justify-center text-error-foreground text-base sm:text-lg transition-colors"
               title="Hapus tanda tangan"
             >
               ×
@@ -251,7 +250,7 @@ export const GuestForm = ({ setHotReloadGuest }) => {
             {/* Placeholder text when empty */}
             {signatureRef.current?.isEmpty() !== false && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p className="text-muted-foreground signage-text-base text-center">
+                <p className="text-muted-foreground signage-text-small sm:signage-text-base text-center">
                   Tanda tangan di sini menggunakan mouse atau sentuhan
                 </p>
               </div>
@@ -261,21 +260,23 @@ export const GuestForm = ({ setHotReloadGuest }) => {
 
         <Button
           onClick={handleSubmit}
-          className="w-full py-6 signage-text-base font-semibold"
+          className="w-full py-4 sm:py-6 signage-text-small sm:signage-text-base font-semibold"
           size="lg"
         >
           {isLoading ? (
-            <div className="w-8 h-8 border-4 border-gray-300 rounded-full border-t-blue-500 animate-spin"></div>
+            <div className="w-6 h-6 sm:w-8 sm:h-8 border-4 border-gray-300 rounded-full border-t-blue-500 animate-spin"></div>
           ) : (
             "Konfirmasi Data"
           )}
         </Button>
 
         <div className="text-center">
-          <span className="signage-text-base text-muted-foreground">atau</span>
+          <span className="signage-text-small sm:signage-text-base text-muted-foreground">
+            atau
+          </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
           <StatisticsCard
             type={"sekolah"}
             count={20}
@@ -293,8 +294,8 @@ export const GuestForm = ({ setHotReloadGuest }) => {
         </div>
 
         <div className="text-center">
-          <a href="/dashboard">
-            <button className="text-primary hover:text-primary/80 signage-text-base font-medium">
+          <a href="/tu/dashboard">
+            <button className="text-primary hover:text-primary/80 signage-text-small sm:signage-text-base font-medium">
               Keluar Dari Papan Informasi
             </button>
           </a>

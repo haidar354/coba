@@ -15,6 +15,16 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"; // Import komponen Dialog dari Shadcn/UI
+import { useState } from "react"; // Tambahkan useState untuk mengelola state modal
 
 // Uncomment salah satu import sesuai dengan router yang Anda gunakan:
 // import { useRouter } from 'next/router'; // untuk Next.js Pages Router
@@ -26,57 +36,56 @@ export function Header() {
   // const router = useRouter(); // untuk Next.js
   // const navigate = useNavigate(); // untuk React Router
 
+  // State untuk mengontrol modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   // Fungsi untuk handle logout
   const handleLogout = async () => {
-    if (window.confirm('Apakah Anda yakin ingin keluar?')) {
-      try {
-        // PILIHAN 1: Jika menggunakan localStorage/sessionStorage
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('id_users');
-        sessionStorage.clear();
-        
-        // PILIHAN 2: Jika menggunakan cookies (uncomment jika diperlukan)
-        // document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-        
-        // PILIHAN 3: Jika ada API logout endpoint (uncomment jika diperlukan)
-        // await fetch('/api/auth/logout', {
-        //   method: 'POST',
-        //   headers: {
-        //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-        //     'Content-Type': 'application/json'
-        //   }
-        // });
-        
-        // PILIHAN 4: Jika menggunakan state management seperti Redux/Zustand
-        // dispatch(logout()); // untuk Redux
-        // useAuthStore.getState().logout(); // untuk Zustand
-        
-        // Redirect ke halaman login - pilih salah satu:
-        
-        // Untuk Next.js Pages Router:
-        // router.push('/login');
-        
-        // Untuk Next.js App Router:
-        // router.push('/login');
-        
-        // Untuk React Router:
-        // navigate('/login');
-        
-        // Untuk vanilla redirect:
-        window.location.href = '/tu/login';
-        
-        // Atau redirect ke root:
-        // window.location.href = '/';
-        
-      } catch (error) {
-        console.error('Logout error:', error);
-        alert('Terjadi kesalahan saat logout. Silakan coba lagi.');
-      }
+    try {
+      // PILIHAN 1: Jika menggunakan localStorage/sessionStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      localStorage.removeItem('id_users');
+      sessionStorage.clear();
+
+      // PILIHAN 2: Jika menggunakan cookies (uncomment jika diperlukan)
+      // document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+
+      // PILIHAN 3: Jika ada API logout endpoint (uncomment jika diperlukan)
+      // await fetch('/api/auth/logout', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+      //     'Content-Type': 'application/json'
+      //   }
+      // });
+
+      // PILIHAN 4: Jika menggunakan state management seperti Redux/Zustand
+      // dispatch(logout()); // untuk Redux
+      // useAuthStore.getState().logout(); // untuk Zustand
+
+      // Redirect ke halaman login - pilih salah satu:
+      
+      // Untuk Next.js Pages Router:
+      // router.push('/login');
+      
+      // Untuk Next.js App Router:
+      // router.push('/login');
+      
+      // Untuk React Router:
+      // navigate('/login');
+      
+      // Untuk vanilla redirect:
+      window.location.href = '/tu/login';
+      
+      // Atau redirect ke root:
+      // window.location.href = '/';
+
+    } catch (error) {
+      console.error('Logout error:', error);
+      alert('Terjadi kesalahan saat logout. Silakan coba lagi.');
     }
   };
-
-  
 
   return (
     <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6">
@@ -101,20 +110,42 @@ export function Header() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <a href="/tu/dashboard">
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            </a>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={handleLogout}
-              className="text-red-600 focus:text-red-600 focus:bg-red-50"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Log Out
-            </DropdownMenuItem>
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+              <DialogTrigger asChild>
+                <DropdownMenuItem
+                  onSelect={(e) => e.preventDefault()} // Mencegah dropdown menutup saat klik
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Log Out
+                </DropdownMenuItem>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Konfirmasi Logout</DialogTitle>
+                  <DialogDescription>
+                    Apakah Anda yakin ingin keluar dari akun Anda? Anda akan diarahkan ke halaman login.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      handleLogout();
+                      setIsModalOpen(false);
+                    }}
+                  >
+                    Logout
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

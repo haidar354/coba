@@ -712,17 +712,33 @@ const SelectWithSearch = ({
   const [loading, setLoading] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
 
-  // Find selected option when value changes
+  // Fetch initial data for the selected value
   useEffect(() => {
-    if (value && options.length > 0) {
-      const found = options.find((opt) => opt[valueField] == value);
-      setSelectedOption(found);
-    } else {
-      setSelectedOption(null);
-    }
-  }, [value, options, valueField]);
+    const fetchInitialData = async () => {
+      if (value && !selectedOption) {
+        setLoading(true);
+        try {
+          // Fetch specific item by ID
+          const data = await fetchOptions("", value); // Assume fetchOptions can handle specific ID
+          const found = Array.isArray(data)
+            ? data.find((opt) => opt[valueField] == value)
+            : data;
+          if (found) {
+            setSelectedOption(found);
+            setOptions([found]); // Initialize options with the selected item
+          }
+        } catch (error) {
+          console.error("Error fetching initial option:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
 
-  // Fetch options when component mounts or search term changes
+    fetchInitialData();
+  }, [value, fetchOptions, valueField]);
+
+  // Fetch options when search term changes or dropdown opens
   useEffect(() => {
     const fetchData = async () => {
       if (!isOpen && searchTerm === "") return;
@@ -753,7 +769,7 @@ const SelectWithSearch = ({
   const handleOpen = async () => {
     if (disabled) return;
     setIsOpen(true);
-    if (options.length === 0) {
+    if (options.length === 0 || searchTerm) {
       setLoading(true);
       try {
         const data = await fetchOptions("");
@@ -859,14 +875,17 @@ const AddEditStudentModal = ({ onClose, student = null, onSave }) => {
     nis: student?.nis || "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [initialUser, setInitialUser] = useState(null);
+  const [initialClass, setInitialClass] = useState(null);
 
   // Fetch users for dropdown
-  const fetchUsers = async (search = "") => {
+  const fetchUsers = async (search = "", specificId = null) => {
     try {
       const params = {
         limit: 50,
         include_role: true,
         ...(search && { search }),
+        ...(specificId && { id: specificId }),
       };
       const response = await api.get("/api/users", { params });
       return response.data || [];
@@ -877,12 +896,13 @@ const AddEditStudentModal = ({ onClose, student = null, onSave }) => {
   };
 
   // Fetch classes for dropdown
-  const fetchClasses = async (search = "") => {
+  const fetchClasses = async (search = "", specificId = null) => {
     try {
       const params = {
         limit: 50,
         include_relations: true,
         ...(search && { search }),
+        ...(specificId && { id: specificId }),
       };
       const response = await api.get("/api/classes", { params });
 
@@ -899,6 +919,38 @@ const AddEditStudentModal = ({ onClose, student = null, onSave }) => {
       return [];
     }
   };
+
+  // Fetch initial data for edit mode
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      if (student) {
+        setIsLoading(true);
+        try {
+          // Fetch user
+          if (student.id_user) {
+            const userData = await fetchUsers("", student.id_user);
+            if (userData && Array.isArray(userData) && userData.length > 0) {
+              setInitialUser(userData[0]);
+            }
+          }
+
+          // Fetch class
+          if (student.id_class) {
+            const classData = await fetchClasses("", student.id_class);
+            if (classData && Array.isArray(classData) && classData.length > 0) {
+              setInitialClass(classData[0]);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching initial data:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchInitialData();
+  }, [student]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

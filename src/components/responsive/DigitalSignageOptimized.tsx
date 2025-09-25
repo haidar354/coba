@@ -1,3 +1,4 @@
+// DigitalSignageOptimized.tsx (Made responsive: adjusted grids, fonts, paddings, icons for sm/md/lg)
 import React, { useRef, useState, useEffect } from "react";
 import { NotificationBanner } from "@/components/NotificationBanner";
 import { StatisticsCard } from "@/components/StatisticsCard";
@@ -136,7 +137,11 @@ const DigitalSignageOptimized = () => {
   const handleCardClick = (text, typeCategory) => {
     setModalTitle("Detail Statistik");
     setModalText(text);
-    setCategory(typeCategory === "siswa" ? ["Semua Kelas", "X PPLG 1", "XI PPLG 1", "XII PPLG 1"] : ["Semua Guru", "Guru Produktif", "Guru Normatif", "Guru Adaptif"]);
+    setCategory(
+      typeCategory === "siswa"
+        ? ["Semua Kelas", "X PPLG 1", "XI PPLG 1", "XII PPLG 1"]
+        : ["Semua Guru", "Guru Produktif", "Guru Normatif", "Guru Adaptif"]
+    );
     setIsModalOpen(true);
   };
 
@@ -160,79 +165,79 @@ const DigitalSignageOptimized = () => {
 
   return (
     <div className="h-full bg-background overflow-y-auto">
-      <div className="p-8 space-y-8">
+      <div className="p-4 sm:p-6 md:p-8 space-y-6 md:space-y-8">
         {/* Header - School Information Banner */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8">
           <NotificationBanner />
         </div>
 
         {/* Main Statistics Display - Optimized for Portrait */}
-        <div className="signage-card bg-card p-8 rounded-2xl shadow-xl">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-6">
-              <currentViewData.icon className="h-16 w-16 text-primary" />
+        <div className="signage-card bg-card p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 md:mb-8 gap-4">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <currentViewData.icon className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 text-primary" />
               <div>
-                <h1 className="signage-text-large text-card-foreground mb-2">
+                <h1 className="signage-text-medium sm:signage-text-large text-card-foreground mb-2">
                   {currentViewData.title}
                 </h1>
-                <p className="signage-text-base text-muted-foreground">
+                <p className="signage-text-small sm:signage-text-base text-muted-foreground">
                   {currentViewData.subtitle}
                 </p>
               </div>
             </div>
 
             {/* Controls for Digital Signage */}
-            <div className="flex items-center gap-6">
-              <div className="signage-text-base text-muted-foreground">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <div className="signage-text-small sm:signage-text-base text-muted-foreground">
                 17 Sep 2025
               </div>
-              
+
               {/* Auto slide indicator */}
               <button
                 onClick={toggleAutoSlide}
-                className={`flex items-center gap-3 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                className={`flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold transition-all duration-300 ${
                   isAutoSlide
                     ? "bg-success text-success-foreground shadow-lg"
                     : "bg-muted text-muted-foreground"
                 }`}
               >
                 {isAutoSlide ? (
-                  <Pause className="h-6 w-6" />
+                  <Pause className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                 ) : (
-                  <Play className="h-6 w-6" />
+                  <Play className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                 )}
-                <span className="signage-text-base">
+                <span className="signage-text-small sm:signage-text-base">
                   {isAutoSlide ? "Auto ON" : "Auto OFF"}
                 </span>
               </button>
 
               {/* Navigation buttons */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={handlePrev}
-                  className="p-3 rounded-xl bg-secondary hover:bg-muted transition-colors"
+                  className="p-2 sm:p-3 rounded-xl bg-secondary hover:bg-muted transition-colors"
                   disabled={isTransitioning}
                 >
-                  <ChevronLeft className="h-6 w-6" />
+                  <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                 </button>
                 <button
                   onClick={handleNext}
-                  className="p-3 rounded-xl bg-secondary hover:bg-muted transition-colors"
+                  className="p-2 sm:p-3 rounded-xl bg-secondary hover:bg-muted transition-colors"
                   disabled={isTransitioning}
                 >
-                  <ChevronRight className="h-6 w-6" />
+                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                 </button>
               </div>
             </div>
           </div>
 
           {/* View Indicators */}
-          <div className="flex justify-center mb-8 gap-4">
+          <div className="flex justify-center mb-6 md:mb-8 gap-3 sm:gap-4">
             {views.map((_, index) => (
               <button
                 key={index}
                 onClick={() => handleViewChange(index)}
-                className={`h-4 w-4 rounded-full transition-all duration-300 ${
+                className={`h-3 w-3 sm:h-4 sm:w-4 rounded-full transition-all duration-300 ${
                   index === currentView
                     ? "bg-primary scale-125"
                     : "bg-muted hover:bg-muted-foreground"
@@ -242,7 +247,7 @@ const DigitalSignageOptimized = () => {
           </div>
 
           {/* Statistics Cards - Portrait Grid Layout */}
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-8">
             {currentViewData.cards.map((card, cardIndex) => (
               <StatisticsCard
                 key={`${currentView}-${cardIndex}`}
@@ -250,17 +255,15 @@ const DigitalSignageOptimized = () => {
                 count={card.count}
                 label={card.label}
                 text={card.text}
-                onClick={() =>
-                  handleCardClick(card.text, card.typeCategory)
-                }
+                onClick={() => handleCardClick(card.text, card.typeCategory)}
               />
             ))}
           </div>
 
           {/* Status indicator for auto-slide */}
           {isAutoSlide && (
-            <div className="mt-8 text-center">
-              <p className="signage-text-base text-muted-foreground">
+            <div className="mt-6 md:mt-8 text-center">
+              <p className="signage-text-small sm:signage-text-base text-muted-foreground">
                 Berganti otomatis setiap {autoSlideInterval / 1000} detik
               </p>
             </div>
@@ -268,21 +271,21 @@ const DigitalSignageOptimized = () => {
         </div>
 
         {/* Additional Information Sections - Portrait Stack */}
-        <div className="space-y-8">
+        <div className="space-y-6 md:space-y-8">
           {/* Visitor Section */}
           <VisitorSection />
 
           {/* School Info & Guest Registration */}
-          <div className="grid grid-cols-1 gap-8">
+          <div className="grid grid-cols-1 gap-6 md:gap-8">
             <SchoolInfo />
-            
+
             {/* Guest Form Section */}
-            <div className="signage-card bg-card rounded-2xl p-8 shadow-lg">
-              <div className="mb-6">
-                <h2 className="signage-text-medium text-card-foreground mb-2">
+            <div className="signage-card bg-card rounded-2xl p-4 sm:p-6 md:p-8 shadow-lg">
+              <div className="mb-4 sm:mb-6">
+                <h2 className="signage-text-small sm:signage-text-medium text-card-foreground mb-2">
                   E-Guestbook
                 </h2>
-                <p className="signage-text-base text-muted-foreground">
+                <p className="signage-text-small sm:signage-text-base text-muted-foreground">
                   Silakan isi data diri untuk keperluan kunjungan
                 </p>
               </div>

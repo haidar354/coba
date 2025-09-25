@@ -10,7 +10,6 @@ import {
   Users,
   ChevronRight,
   School,
-  // BookOpen,
   Library,
   Edit,
   Clock,
@@ -38,7 +37,29 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useNavigate } from "react-router-dom";
-const menuItems = [
+import { LucideIcon } from "lucide-react";
+
+// Interface untuk struktur menu
+interface MenuItem {
+  title: string;
+  url?: string;
+  icon: LucideIcon;
+  submenu?: SubMenuItem[];
+}
+
+interface SubMenuItem {
+  title: string;
+  url: string;
+}
+
+// Interface untuk permissions dari localStorage
+interface Permission {
+  resource: { name: string };
+  id_role: number;
+  can_read: boolean;
+}
+
+const menuItems: MenuItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Siswa", url: "/siswa", icon: GraduationCap },
   { title: "Guru", url: "/guru", icon: Lectern },
@@ -49,7 +70,6 @@ const menuItems = [
   { title: "Klasifikasi Surat", url: "/klasifikasi-surat", icon: FileText },
   { title: "Agenda", url: "/agenda", icon: Calendar },
   { title: "Buku Tamu", url: "/buku-tamu", icon: BookOpen },
-
   {
     title: "Survei",
     icon: ClipboardList,
@@ -61,6 +81,7 @@ const menuItems = [
   },
   { title: "Manajemen Users", url: "/manajemen-user", icon: Users },
   { title: "Manajemen Roles", url: "/manajemen-role", icon: SquareStack },
+  { title: "Tahun Ajaran", url: "/tahun-ajaran", icon: Calendar }, // Sudah ada
 ];
 
 export function AppSidebar() {
@@ -69,78 +90,77 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const collapsed = state === "collapsed";
-
   const navigate = useNavigate();
-  const [rule, setRule] = useState(null);
+  const [rule, setRule] = useState<Permission[] | null>(null);
+  const [filteredMenuItems, setFilteredMenuItems] = useState<MenuItem[]>(menuItems);
 
   useEffect(() => {
     try {
-      // Cek apakah localStorage tersedia dan ada data
       const roleData = localStorage.getItem("role");
       if (!roleData) {
-        setRule(null); // atau default value yang sesuai
+        setRule(null);
+        setFilteredMenuItems(menuItems);
         return;
       }
 
-      // Parse JSON dengan error handling
-      const parsedRole = JSON.parse(roleData);
-
-      // Validasi apakah parsedRole adalah array
+      const parsedRole: Permission[] = JSON.parse(roleData);
       if (!Array.isArray(parsedRole)) {
         console.warn("Role data is not an array");
         setRule(null);
+        setFilteredMenuItems(menuItems);
         return;
       }
-      // const ruleTable = parsedRole.find(
-      //   (r) => r && r.resource && r.resource.name == "teachers"
-      // );
-      // Cari rule dengan pengecekan resource
 
-      setRule(parsedRole || null);
-      const filterMenuItems = (menuItems, permissions) => {
-        // Cari aturan untuk resource "teachers" dan role "Kepala Sekolah" (id_role: 2)
+      setRule(parsedRole);
+
+      const filterMenuItems = (items: MenuItem[], permissions: Permission[]): MenuItem[] => {
         const teacherPermission = permissions.find(
           (perm) => perm.resource.name === "teachers" && perm.id_role === 2
         );
-  
-        // Filter menuItems
-        return menuItems.filter((item) => {
-          // Jika item adalah "Guru" dan can_read untuk "teachers" adalah false, skip item ini
+        const academicYearPermission = permissions.find(
+          (perm) => perm.resource.name === "academic_years" && perm.id_role === 2
+        );
+
+        return items.filter((item) => {
           if (item.title === "Guru" && teacherPermission?.can_read === false) {
             return false;
           }
-          // Jika item memiliki submenu, filter submenu-nya juga (jika perlu)
-          if (item.submenu) {
-            return true; // Tetap tampilkan item dengan submenu, sesuaikan jika ada aturan tambahan
+          if (
+            item.title === "Tahun Ajaran" &&
+            academicYearPermission?.can_read === false
+          ) {
+            return false;
           }
-          return true; // Tampilkan item lain
+          if (item.submenu) {
+            return true; // Tetap tampilkan item dengan submenu
+          }
+          return true;
         });
       };
-      const filteredMenuItems = filterMenuItems(menuItems, parsedRole);
-  
-      // Output hasil filter
-      console.log("asdasd",filteredMenuItems);
+
+      const filtered = filterMenuItems(menuItems, parsedRole);
+      setFilteredMenuItems(filtered);
+      console.log("Filtered menu items:", filtered);
     } catch (error) {
       console.error("Error parsing role data from localStorage:", error);
       setRule(null);
+      setFilteredMenuItems(menuItems);
     }
   }, [navigate]);
+
   useEffect(() => {
-    
-  }, [navigate,rule ]);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/tu/login";
+    }
+  }, []);
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
       ? "bg-sidebar-accent text-sidebar-accent-foreground"
       : "hover:bg-sidebar-accent/50";
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      // Jika token tidak ada, redirect ke halaman login
-      window.location.href = "/tu/login";
-    }
-  }, []);
+
   return (
     <Sidebar className="bg-blue-sidebar border-r border-sidebar-border">
       <SidebarContent>
@@ -161,7 +181,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {filteredMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   {item.submenu ? (
                     <Collapsible
@@ -206,7 +226,7 @@ export function AppSidebar() {
                     </Collapsible>
                   ) : (
                     <SidebarMenuButton asChild>
-                      <NavLink to={item.url} className={getNavCls}>
+                      <NavLink to={item.url!} className={getNavCls}>
                         <item.icon className="h-4 w-4" />
                         {!collapsed && <span>{item.title}</span>}
                       </NavLink>

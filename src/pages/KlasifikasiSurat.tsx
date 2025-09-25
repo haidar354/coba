@@ -456,6 +456,7 @@ export default function KlasifikasiSurat() {
           file_path: response.data,
         });
         alert("Data berhasil ditambahkan");
+        setIsModalOpen(false);
       } else if (category === "Edit Data") {
         if (!editData) {
           return;
@@ -508,6 +509,7 @@ export default function KlasifikasiSurat() {
           await api.put(`/api/academic/letters/${editData.id}`, payload);
         }
         alert("Data berhasil diupdate");
+        setIsModalOpen(false);
       } else if (category === "Download") {
         const fetchAllAttendanceData = async () => {
           try {

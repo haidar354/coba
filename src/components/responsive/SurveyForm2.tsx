@@ -47,7 +47,6 @@ const SurveyForm = ({
 
     questions.forEach((question, index) => {
       const data = surveyData.scores[question.id];
-      console.log("data", data);
       responses.push({
         id_survey: question.id_survey,
         id_survey_question: question.id,
@@ -64,35 +63,6 @@ const SurveyForm = ({
 
   const handleSubmit = async () => {
     // Validasi form - pastikan semua field terisi
-    if (!surveyData.name || !surveyData.institution || !surveyData.feedback) {
-      toast.error("Mohon lengkapi semua data");
-      return;
-    }
-
-    // Validasi nama - tidak boleh mengandung angka dan karakter khusus
-    const invalidCharsRegex = /[0-9@#$%&*+=<>?{}[\]|\\:";,^~`!]/;
-    if (invalidCharsRegex.test(surveyData.name)) {
-      toast.error("Nama tidak boleh mengandung angka atau simbol khusus");
-      return;
-    }
-
-    // Validasi untuk emoji dan karakter unicode pada nama
-    const emojiRegex =
-      /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u;
-    if (emojiRegex.test(surveyData.name)) {
-      toast.error("Nama tidak boleh mengandung emoji");
-      return;
-    }
-
-    // Validasi nama hanya boleh huruf, spasi, titik, dan apostrof
-    const nameValidRegex = /^[a-zA-Z\s.']+$/;
-    if (!nameValidRegex.test(surveyData.name)) {
-      toast.error(
-        "Nama hanya boleh mengandung huruf, spasi, titik, dan apostrof"
-      );
-      return;
-    }
-
     setIsloadingQuestion(true);
 
     try {
@@ -109,7 +79,7 @@ const SurveyForm = ({
             question,
             response.data.id
           );
-          const response2 = await api.post(`api/academic/responses/bulk`, data);
+          const response2 = await api.post(`/api/academic/responses/bulk`, data);
           setIsloadingQuestion(false);
 
           // Toast sukses
@@ -220,7 +190,7 @@ const SurveyForm = ({
 
   return (
     <div className=" bg-gray-100 flex items-center justify-center ">
-      <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full p-8">
+      <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto ">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-semibold text-survey-title mb-4">

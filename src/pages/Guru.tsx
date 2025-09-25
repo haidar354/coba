@@ -8,11 +8,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
-  RotateCcw,
-  FileSpreadsheet,
+  Loader2,
   AlertCircle,
   CheckCircle,
-  Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,6 +34,7 @@ import { useState, useEffect, useCallback } from "react";
 import api from "@/utils/axios";
 import { downloadExcel } from "@/utils/download.util";
 import { useNavigate } from "react-router-dom";
+
 // Modal Component
 const Modal = ({ isOpen, onClose, title, children, size = "default" }) => {
   if (!isOpen) return null;
@@ -90,6 +89,174 @@ const Alert = ({ type, message, onClose }) => {
   );
 };
 
+// SelectWithSearch Component
+const SelectWithSearch = ({
+  placeholder,
+  value,
+  onSelect,
+  fetchOptions,
+  displayField,
+  valueField = "id",
+  searchField,
+  disabled = false,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [options, setOptions] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
+
+  // Fetch initial data for the selected value
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      if (value && !selectedOption) {
+        setLoading(true);
+        try {
+          const data = await fetchOptions("", value);
+          const found = Array.isArray(data)
+            ? data.find((opt) => opt[valueField] == value)
+            : data;
+          if (found) {
+            setSelectedOption(found);
+            setOptions([found]);
+          }
+        } catch (error) {
+          console.error("Error fetching initial option:", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchInitialData();
+  }, [value, fetchOptions, valueField]);
+
+  // Fetch options when search term changes or dropdown opens
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!isOpen && searchTerm === "") return;
+
+      setLoading(true);
+      try {
+        const data = await fetchOptions(searchTerm);
+        setOptions(data);
+      } catch (error) {
+        console.error("Error fetching options:", error);
+        setOptions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const timeoutId = setTimeout(fetchData, 300); // Debounce
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, isOpen, fetchOptions]);
+
+  const handleSelect = (option) => {
+    setSelectedOption(option);
+    onSelect(option[valueField], option);
+    setIsOpen(false);
+    setSearchTerm("");
+  };
+
+  const handleOpen = async () => {
+    if (disabled) return;
+    setIsOpen(true);
+    if (options.length === 0 || searchTerm) {
+      setLoading(true);
+      try {
+        const data = await fetchOptions("");
+        setOptions(data);
+      } catch (error) {
+        console.error("Error fetching options:", error);
+        setOptions([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={handleOpen}
+        disabled={disabled}
+        className="flex h-10 w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className={selectedOption ? "text-gray-900" : "text-gray-400"}>
+          {selectedOption ? selectedOption[displayField] : placeholder}
+        </span>
+        <svg
+          className="h-4 w-4 opacity-50"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 10l5 5 5-5"
+          />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden">
+          <div className="p-2">
+            <Input
+              placeholder={`Cari ${placeholder.toLowerCase()}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-8"
+            />
+          </div>
+
+          <div className="max-h-48 overflow-auto">
+            {loading ? (
+              <div className="p-2 text-center">
+                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+              </div>
+            ) : options.length > 0 ? (
+              options.map((option) => (
+                <button
+                  key={option[valueField]}
+                  onClick={() => handleSelect(option)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 block"
+                >
+                  <div>
+                    <div className="font-medium">{option[displayField]}</div>
+                    {searchField && option[searchField] && (
+                      <div className="text-xs text-gray-500">
+                        {option[searchField]}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="p-2 text-center text-sm text-gray-500">
+                {searchTerm ? "Tidak ada hasil ditemukan" : "Tidak ada data"}
+              </div>
+            )}
+          </div>
+
+          <div className="p-2 border-t">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => setIsOpen(false)}
+            >
+              Tutup
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Download Modal Content
 const DownloadModal = ({ onClose, onDownload }) => {
   const [format, setFormat] = useState("excel");
@@ -100,10 +267,13 @@ const DownloadModal = ({ onClose, onDownload }) => {
   const handleDownload = async () => {
     setIsLoading(true);
     try {
-      await onDownload();
+      await onDownload(format, { startDate, endDate });
       onClose();
     } catch (error) {
       console.error("Download error:", error);
+      alert(
+        "Gagal mendownload data: " + (error.message || "Terjadi kesalahan")
+      );
     } finally {
       setIsLoading(false);
     }
@@ -208,39 +378,39 @@ const UploadModal = ({ onClose, onUpload }) => {
       });
 
       if (response.status === 200) {
-        console.log("Response data:", response);
         const responseada = await api.post("/api/teachers/bulk", {
           type: "excel",
           data: response.data,
         });
         if (responseada.status === 201) {
-          alert(`Upload berhasil!`);
-          onClose();
+          setUploadResult({
+            success: true,
+            message: "Upload berhasil!",
+            data: responseada.data,
+          });
+          onUpload();
         }
       }
     } catch (error) {
-      if (error.response) {
-        alert("Upload gagal: " + error.response.data.message);
-      } else {
-        alert("Error: " + error.message);
-      }
+      setUploadResult({
+        success: false,
+        message: error.response?.data?.message || "Upload gagal",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDownload = () => {
-    // Create a temporary link element to trigger download
     const link = document.createElement("a");
     link.href = "/tu/file_template/Template%20Data%20Guru.xlsx";
     link.download = "template_data_guru.xlsx";
     link.target = "_blank";
-
-    // Append to body, click, and remove
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
@@ -344,8 +514,32 @@ const AddTeacherModal = ({ onClose, onAdd }) => {
     nip: "",
     email: "",
     phone: "",
+    id_class: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch classes for dropdown
+  const fetchClasses = async (search = "", specificId = null) => {
+    try {
+      const params = {
+        limit: 50,
+        include_relations: true,
+        ...(search && { search }),
+        ...(specificId && { id: specificId }),
+      };
+      const response = await api.get("/api/classes", { params });
+      const classes = response.data || [];
+      return classes.map((cls) => ({
+        ...cls,
+        class_display: `${cls.grade} ${cls.department?.name || ""} ${
+          cls.subgrade || ""
+        }`.trim(),
+      }));
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+      return [];
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -369,10 +563,10 @@ const AddTeacherModal = ({ onClose, onAdd }) => {
     }
   };
 
-  const handleChange = (field) => (e) => {
+  const handleChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: e.target.value,
+      [field]: value,
     }));
   };
 
@@ -390,7 +584,7 @@ const AddTeacherModal = ({ onClose, onAdd }) => {
           <Input
             placeholder="Masukkan nama lengkap guru"
             value={formData.full_name}
-            onChange={handleChange("full_name")}
+            onChange={(e) => handleChange("full_name", e.target.value)}
             required
           />
         </div>
@@ -399,7 +593,7 @@ const AddTeacherModal = ({ onClose, onAdd }) => {
           <Input
             placeholder="Masukkan NIP"
             value={formData.nip}
-            onChange={handleChange("nip")}
+            onChange={(e) => handleChange("nip", e.target.value)}
             required
           />
         </div>
@@ -413,7 +607,7 @@ const AddTeacherModal = ({ onClose, onAdd }) => {
           type="email"
           placeholder="Masukkan email guru"
           value={formData.email}
-          onChange={handleChange("email")}
+          onChange={(e) => handleChange("email", e.target.value)}
         />
       </div>
 
@@ -424,7 +618,22 @@ const AddTeacherModal = ({ onClose, onAdd }) => {
         <Input
           placeholder="Masukkan nomor telepon"
           value={formData.phone}
-          onChange={handleChange("phone")}
+          onChange={(e) => handleChange("phone", e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Kelas (Opsional)
+        </label>
+        <SelectWithSearch
+          placeholder="Pilih Kelas"
+          value={formData.id_class}
+          onSelect={(value) => handleChange("id_class", value)}
+          fetchOptions={fetchClasses}
+          displayField="class_display"
+          searchField="academic_year.year"
+          valueField="id"
         />
       </div>
 
@@ -462,8 +671,54 @@ const EditTeacherModal = ({ teacher, onClose, onUpdate }) => {
     nip: teacher.nip || "",
     email: teacher.user?.data?.email || "",
     phone: teacher.user?.data?.phone || "",
+    id_class: teacher.id_class || "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [initialClass, setInitialClass] = useState(null);
+
+  // Fetch classes for dropdown
+  const fetchClasses = async (search = "", specificId = null) => {
+    try {
+      const params = {
+        limit: 50,
+        include_relations: true,
+        ...(search && { search }),
+        ...(specificId && { id: specificId }),
+      };
+      const response = await api.get("/api/classes", { params });
+      const classes = response.data || [];
+      return classes.map((cls) => ({
+        ...cls,
+        class_display: `${cls.grade} ${cls.department?.name || ""} ${
+          cls.subgrade || ""
+        }`.trim(),
+      }));
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+      return [];
+    }
+  };
+
+  // Fetch initial class data
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      if (teacher.id_class) {
+        setIsLoading(true);
+        try {
+          const classData = await fetchClasses("", teacher.id_class);
+          if (classData && Array.isArray(classData) && classData.length > 0) {
+            setInitialClass(classData[0]);
+          }
+        } catch (error) {
+          console.error("Error fetching initial class:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchInitialData();
+  }, [teacher.id_class]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -471,6 +726,10 @@ const EditTeacherModal = ({ teacher, onClose, onUpdate }) => {
       alert("Nama dan NIP harus diisi!");
       return;
     }
+    const cek = {
+      ...formData,
+    }
+    console.log(cek)
 
     setIsLoading(true);
     try {
@@ -487,10 +746,10 @@ const EditTeacherModal = ({ teacher, onClose, onUpdate }) => {
     }
   };
 
-  const handleChange = (field) => (e) => {
+  const handleChange = (field, value) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: e.target.value,
+      [field]: value,
     }));
   };
 
@@ -506,7 +765,7 @@ const EditTeacherModal = ({ teacher, onClose, onUpdate }) => {
           <Input
             placeholder="Masukkan nama lengkap guru"
             value={formData.full_name}
-            onChange={handleChange("full_name")}
+            onChange={(e) => handleChange("full_name", e.target.value)}
             required
           />
         </div>
@@ -515,7 +774,7 @@ const EditTeacherModal = ({ teacher, onClose, onUpdate }) => {
           <Input
             placeholder="Masukkan NIP"
             value={formData.nip}
-            onChange={handleChange("nip")}
+            onChange={(e) => handleChange("nip", e.target.value)}
             required
           />
         </div>
@@ -529,7 +788,7 @@ const EditTeacherModal = ({ teacher, onClose, onUpdate }) => {
           type="email"
           placeholder="Masukkan email guru"
           value={formData.email}
-          onChange={handleChange("email")}
+          onChange={(e) => handleChange("email", e.target.value)}
         />
       </div>
 
@@ -540,7 +799,22 @@ const EditTeacherModal = ({ teacher, onClose, onUpdate }) => {
         <Input
           placeholder="Masukkan nomor telepon"
           value={formData.phone}
-          onChange={handleChange("phone")}
+          onChange={(e) => handleChange("phone", e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Kelas (Opsional)
+        </label>
+        <SelectWithSearch
+          placeholder="Pilih Kelas"
+          value={formData.id_class}
+          onSelect={(value) => handleChange("id_class", value)}
+          fetchOptions={fetchClasses}
+          displayField="class_display"
+          searchField="academic_year.year"
+          valueField="id"
         />
       </div>
 
@@ -587,35 +861,30 @@ export default function Guru() {
   const [modalTitle, setModalTitle] = useState("");
   const [modalType, setModalType] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState(null);
-  
-  const navigate = useNavigate()
+
+  const navigate = useNavigate();
   const [rule, setRule] = useState(null);
 
   useEffect(() => {
     try {
-      // Cek apakah localStorage tersedia dan ada data
       const roleData = localStorage.getItem("role");
       if (!roleData) {
-        setRule(null); // atau default value yang sesuai
+        setRule(null);
         return;
       }
 
-      // Parse JSON dengan error handling
-       const parsedRole = JSON.parse(roleData);
-
-      // Validasi apakah parsedRole adalah array
+      const parsedRole = JSON.parse(roleData);
       if (!Array.isArray(parsedRole)) {
         console.warn("Role data is not an array");
         setRule(null);
         return;
       }
 
-      // Cari rule dengan pengecekan resource
       const ruleTable = parsedRole.find(
-        (r) => r && r.resource && r.resource.name == "teachers"
+        (r) => r && r.resource && r.resource.name === "teachers"
       );
-      if(ruleTable.can_read === false)  {
-        navigate("/dashboard")
+      if (ruleTable?.can_read === false) {
+        navigate("/dashboard");
       }
       setRule(ruleTable || null);
     } catch (error) {
@@ -623,6 +892,7 @@ export default function Guru() {
       setRule(null);
     }
   }, [navigate]);
+
   // Debounced search
   const [searchTimeout, setSearchTimeout] = useState(null);
 
@@ -641,15 +911,11 @@ export default function Guru() {
 
         if (response.data) {
           setTeachers(response.data || []);
-          console.log(JSON.parse(response.headers["x-pagination"]).total_items);
           if (response.headers["x-pagination"]) {
-            setPagination(response.data.pagination);
-            setTotalPages(
-              JSON.parse(response.headers["x-pagination"]).total_pages
-            );
-            setTotalItems(
-              JSON.parse(response.headers["x-pagination"]).total_items
-            );
+            const paginationData = JSON.parse(response.headers["x-pagination"]);
+            setPagination(paginationData);
+            setTotalPages(paginationData.total_pages);
+            setTotalItems(paginationData.total_items);
           }
         }
       } catch (error) {
@@ -701,56 +967,47 @@ export default function Guru() {
   };
 
   // API handlers
-  const handleDownload = async () => {
-    await downloadExcel("teachers");
-  };
-
-  const handleUpload = async (file) => {
+  const handleDownload = async (format, { startDate, endDate }) => {
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("type", "excel");
-
-      const response = await api.post("/api/teachers/bulk", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      if (response.data) {
-        // Reload data after successful upload
-        await loadTeachers(currentPage, itemsPerPage, searchTerm);
-
-        return {
-          success: response.data.success,
-          message: response.data.message,
-          data: response.data.data,
-        };
-      }
+      const params = {
+        format,
+        ...(startDate && { start_date: startDate }),
+        ...(endDate && { end_date: endDate }),
+      };
+      await downloadExcel("teachers", params);
     } catch (error) {
-      console.error("Upload error:", error);
-      throw new Error(error.response?.data?.message || "Upload gagal");
+      console.error("Download error:", error);
+      throw error;
     }
   };
 
+  const handleUpload = async () => {
+    await loadTeachers(currentPage, itemsPerPage, searchTerm);
+  };
+
   const handleAddTeacher = async (teacherData) => {
-    console.log("Adding teacher:", teacherData);
     try {
-      // Create user data structure for teacher
       const userData = {
         full_name: teacherData.full_name,
-        id_role: 3, // Teacher role ID
+        id_role: 3,
         data: {
           nip: teacherData.nip,
           email: teacherData.email || "",
           phone: teacherData.phone || "",
-          id_class: null, // Will be assigned later
+          id_class: teacherData.id_class || null,
         },
       };
 
-      await api.post("/api/users", userData);
+      const response = await api.post("/api/users", userData);
+      if (response.status === 201) {
+        const teacherData = {
+          nip: teacherData.nip,
+          id_user: response.data.id,
+          id_class: teacherData.id_class || null,
+        };
+        await api.post("/api/teachers", teacherData);
+      }
 
-      // Reload data
       await loadTeachers(currentPage, itemsPerPage, searchTerm);
     } catch (error) {
       console.error("Add teacher error:", error);
@@ -760,12 +1017,6 @@ export default function Guru() {
 
   const handleUpdateTeacher = async (teacherId, teacherData) => {
     try {
-      // Update teacher data
-      const updateData = {
-        nip: teacherData.nip,
-      };
-
-      // Update user data
       const teacher = teachers.find((t) => t.id === teacherId);
       if (teacher?.user?.id) {
         const userUpdateData = {
@@ -773,17 +1024,34 @@ export default function Guru() {
           data: {
             ...teacher.user.data,
             nip: teacherData.nip,
-            ...(teacherData.email && { email: teacherData.email }),
-            ...(teacherData.phone && { phone: teacherData.phone }),
+            email: teacherData.email || "",
+            phone: teacherData.phone || "",
+            id_class: teacherData.id_class || "",
           },
         };
 
         await api.put(`/api/users/${teacher.user.id}`, userUpdateData);
       }
+      let updateData;
+      if (teacherData.id_class === null) {
+         updateData = {
+          nip: teacherData.nip,
+        };
+      } 
+      if (teacherData.id_class === "") {
+         updateData = {
+          nip: teacherData.nip,
+        };
+      } 
+      else {
+         updateData = {
+          nip: teacherData.nip,
+          id_class: teacherData.id_class,
+        };
+      }
 
       await api.put(`/api/teachers/${teacherId}`, updateData);
 
-      // Reload data
       await loadTeachers(currentPage, itemsPerPage, searchTerm);
     } catch (error) {
       console.error("Update teacher error:", error);
@@ -869,14 +1137,14 @@ export default function Guru() {
 
         <div className="flex gap-2">
           {rule?.can_create === true && (
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => openModal("upload", "Upload Data Guru")}
-          >
-            <Upload className="h-4 w-4" />
-            Upload
-          </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => openModal("upload", "Upload Data Guru")}
+            >
+              <Upload className="h-4 w-4" />
+              Upload
+            </Button>
           )}
           <Button
             variant="outline"
@@ -887,13 +1155,13 @@ export default function Guru() {
             Download
           </Button>
           {rule?.can_create === true && (
-          <Button
-            className="gap-2"
-            onClick={() => openModal("add", "Tambah Data Guru")}
-          >
-            <Plus className="h-4 w-4" />
-            Tambah Data
-          </Button>
+            <Button
+              className="gap-2"
+              onClick={() => openModal("add", "Tambah Data Guru")}
+            >
+              <Plus className="h-4 w-4" />
+              Tambah Data
+            </Button>
           )}
         </div>
       </div>
@@ -987,7 +1255,9 @@ export default function Guru() {
                         <TableCell>
                           {teacher.class ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {teacher.class.grade}
+                              {teacher.class.grade}{" "}
+                              {teacher.class.department?.name || ""}{" "}
+                              {teacher.class.subgrade || ""}
                             </span>
                           ) : (
                             <span className="text-gray-400 text-xs">
@@ -997,28 +1267,24 @@ export default function Guru() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                          {rule?.can_edit === true && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() =>
-                                openModal("edit", "Edit Data Guru", teacher)
-                              }
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {rule?.can_delete === true && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => handleDeleteTeacher(teacher.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() =>
+                                  openModal("edit", "Edit Data Guru", teacher)
+                                }
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteTeacher(teacher.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                           </div>
                         </TableCell>
                       </TableRow>

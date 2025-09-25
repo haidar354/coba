@@ -31,6 +31,7 @@ import Jurusan from "./pages/Jurusan";
 import DaftarPertanyaan from "./pages/DaftarPertanyaan";
 import "react-toastify/dist/ReactToastify.css";
 import Kelas_coba from "./pages/Kelas _coba";
+import TahunAjaran from "./pages/TahunAjaran"; // Impor komponen baru
 
 const queryClient = new QueryClient();
 
@@ -200,9 +201,16 @@ const router = createBrowserRouter(
         </Layout>
       ),
     },
-
     { path: "/guest-visits/landing/responsive", element: <Digitalsignage2 /> },
     { path: "/guest-visits/landing", element: <Digitalsignage /> },
+    {
+      path: "/tahun-ajaran", // Rute baru untuk Tahun Ajaran
+      element: (
+        <Layout>
+          <TahunAjaran />
+        </Layout>
+      ),
+    },
     { path: "*", element: <NotFound /> },
   ],
   {
