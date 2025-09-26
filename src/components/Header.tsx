@@ -25,6 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"; // Import komponen Dialog dari Shadcn/UI
 import { useState } from "react"; // Tambahkan useState untuk mengelola state modal
+import { authAPI } from "@/utils/axios2";
 
 // Uncomment salah satu import sesuai dengan router yang Anda gunakan:
 // import { useRouter } from 'next/router'; // untuk Next.js Pages Router
@@ -42,11 +43,10 @@ export function Header() {
   // Fungsi untuk handle logout
   const handleLogout = async () => {
     try {
-      // PILIHAN 1: Jika menggunakan localStorage/sessionStorage
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      localStorage.removeItem('id_users');
+       await authAPI.logout();
+      localStorage.clear();
       sessionStorage.clear();
+      // PILIHAN 1: Jika menggunakan localStorage/sessionStorage
 
       // PILIHAN 2: Jika menggunakan cookies (uncomment jika diperlukan)
       // document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
@@ -65,25 +65,24 @@ export function Header() {
       // useAuthStore.getState().logout(); // untuk Zustand
 
       // Redirect ke halaman login - pilih salah satu:
-      
+
       // Untuk Next.js Pages Router:
       // router.push('/login');
-      
+
       // Untuk Next.js App Router:
       // router.push('/login');
-      
+
       // Untuk React Router:
       // navigate('/login');
-      
+
       // Untuk vanilla redirect:
-      window.location.href = '/tu/login';
-      
+      window.location.href = "/tu/login";
+
       // Atau redirect ke root:
       // window.location.href = '/';
-
     } catch (error) {
-      console.error('Logout error:', error);
-      alert('Terjadi kesalahan saat logout. Silakan coba lagi.');
+      console.error("Logout error:", error);
+      alert("Terjadi kesalahan saat logout. Silakan coba lagi.");
     }
   };
 
@@ -124,7 +123,8 @@ export function Header() {
                 <DialogHeader>
                   <DialogTitle>Konfirmasi Logout</DialogTitle>
                   <DialogDescription>
-                    Apakah Anda yakin ingin keluar dari akun Anda? Anda akan diarahkan ke halaman login.
+                    Apakah Anda yakin ingin keluar dari akun Anda? Anda akan
+                    diarahkan ke halaman login.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>

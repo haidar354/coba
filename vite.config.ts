@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       "/api/v1": {
         // target: "https://api-v1-production-1b72.up.railway.app/",
-        target: "https://website-sekolahku-be.up.railway.app",
+        // target: "https://website-sekolahku-be.up.railway.app",
+        target: "http://147.139.209.177/api",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/v1/, ""),
         // For local development, uncomment below:

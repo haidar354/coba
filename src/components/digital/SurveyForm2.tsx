@@ -62,35 +62,34 @@ const SurveyForm = ({
 
 
   const handleSubmit = async () => {
-    // Validasi form - pastikan semua field terisi
     setIsloadingQuestion(true);
-
+  
     try {
-      const response = await api.post(`api/academic/surveyors`, {
+      // Create the body object and filter out empty string values
+      const body = {
         id_survey: isSurveyId,
         name: surveyData.name,
         organization: surveyData.institution,
         feedback: surveyData.feedback,
-      });
-
+      };
+      const filteredBody = Object.fromEntries(
+        Object.entries(body).filter(([_, value]) => value !== "")
+      );
+  
+      const response = await api.post(`api/academic/surveyors`, filteredBody);
+  
       if (response.status === 201) {
         try {
-          const data = generateCustomSurveyResponses(
-            question,
-            response.data.id
-          );
+          const data = generateCustomSurveyResponses(question, response.data.id);
           const response2 = await api.post(`/api/academic/responses/bulk`, data);
           setIsloadingQuestion(false);
-
-          // Toast sukses
+  
           toast.success("Data survei berhasil dikirim!");
-
           return response2.data;
         } catch (error) {
           console.error("Error submitting survey responses:", error);
           setIsloadingQuestion(false);
-
-          // Handle error untuk bulk responses
+  
           if (error.response) {
             switch (error.response.status) {
               case 400:
@@ -110,25 +109,23 @@ const SurveyForm = ({
           } else {
             toast.error("Terjadi kesalahan yang tidak terduga");
           }
-
+  
           throw error;
         }
       }
     } catch (error) {
       console.error("Error submitting surveyor data:", error);
       setIsloadingQuestion(false);
-
-      // Handle error untuk surveyor data
+  
       if (error.response) {
         console.error("Response data:", error.response.data);
         console.error("Response status:", error.response.status);
-
+  
         switch (error.response.status) {
           case 400:
             toast.error("Data yang dikirim tidak valid");
             break;
           case 422:
-            // Jika ada validasi error dari backend
             if (error.response.data.message) {
               toast.error(error.response.data.message);
             } else {
@@ -149,7 +146,7 @@ const SurveyForm = ({
       } else {
         toast.error("Terjadi kesalahan yang tidak terduga");
       }
-
+  
       throw error;
     }
   };

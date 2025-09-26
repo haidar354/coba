@@ -29,14 +29,14 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Assuming `api` is your Axios instance
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
+    if (error.response?.status === 401 && window.location.pathname !== "/tu/login") {
+      // Handle unauthorized access, but skip if already on /tu/login
       localStorage.removeItem("token");
       window.location.href = "/tu/login";
     }

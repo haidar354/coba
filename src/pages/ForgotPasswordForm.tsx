@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import api from "@/utils/axios";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const ForgotPasswordForm = () => {
   const [email, setEmail] = useState("");
@@ -18,11 +20,19 @@ const ForgotPasswordForm = () => {
         email,
       });
       setIsLoading(false);
-      console.log("RESEP: ", response);
+      toast.success("Jika email tersebut ada, tautan untuk mengatur ulang kata sandi telah dikirim.", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      setTimeout(() => navigate("/login"), 3000);
       return response.data;
     } catch (error) {
-      console.error("Error submitting data:", error);
       setIsLoading(false);
+      toast.error("Failed to send reset request. Please try again.", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      console.error("Error submitting data:", error);
       throw error;
     }
   };
@@ -59,6 +69,7 @@ const ForgotPasswordForm = () => {
         <Button
           type="submit"
           className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+          disabled={isLoading}
         >
           {isLoading ? (
             <div className="w-8 h-8 border-4 border-gray-300 rounded-full border-t-blue-500 animate-spin"></div>

@@ -1,8 +1,6 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createBrowserRouter, RouterProvider } from "react-router-dom"; // 👈 switch to Data Router
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import Dashboard from "./pages/Dashboard";
 import KlasifikasiSurat from "./pages/KlasifikasiSurat";
@@ -31,7 +29,7 @@ import Jurusan from "./pages/Jurusan";
 import DaftarPertanyaan from "./pages/DaftarPertanyaan";
 import "react-toastify/dist/ReactToastify.css";
 import Kelas_coba from "./pages/Kelas _coba";
-import TahunAjaran from "./pages/TahunAjaran"; // Impor komponen baru
+import TahunAjaran from "./pages/TahunAjaran";
 
 const queryClient = new QueryClient();
 
@@ -204,7 +202,7 @@ const router = createBrowserRouter(
     { path: "/guest-visits/landing/responsive", element: <Digitalsignage2 /> },
     { path: "/guest-visits/landing", element: <Digitalsignage /> },
     {
-      path: "/tahun-ajaran", // Rute baru untuk Tahun Ajaran
+      path: "/tahun-ajaran",
       element: (
         <Layout>
           <TahunAjaran />
@@ -226,8 +224,7 @@ const router = createBrowserRouter(
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
+      {/* REMOVED: <Toaster /> and <Sonner /> to avoid conflicts */}
       <RouterProvider router={router} />
       <ToastContainer
         position="top-right"

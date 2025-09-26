@@ -53,7 +53,7 @@ const Index = () => {
           type: "present",
           count: 0,
           label: "HADIR",
-          text: "Daftar Siswa Hadir Hari Ini",
+          text: "Daftar Siswa SUCK Hari Ini",
           typeCategory: "siswa",
         },
         {

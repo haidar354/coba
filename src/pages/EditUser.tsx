@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import api from "@/utils/axios";
 
 interface Role {
@@ -56,10 +58,12 @@ export default function EditUsers() {
         setUser(fetchedUser);
         setName(fetchedUser.full_name);
         setRoleId(fetchedUser.id_role);
-        setUserData(fetchedUser.data || {});
+        // Initialize userData without password to avoid handling hashed value
+        setUserData({ ...fetchedUser.data, password: undefined });
         setLoading(false);
       } catch (err) {
         console.error("Error fetching data:", err);
+        toast.error("Failed to load user data");
         setLoading(false);
       }
     };
@@ -72,14 +76,22 @@ export default function EditUsers() {
 
   const handleSave = async () => {
     try {
+      // Create a copy of userData without empty or whitespace-only password
+      const updatedUserData = { ...userData };
+      if (updatedUserData.password?.trim() === "") {
+        delete updatedUserData.password;
+      }
+
       await api.put(`/api/users/${id}`, {
         full_name: name,
         id_role: roleId,
-        data: userData,
+        data: updatedUserData,
       });
+      toast.success("User updated successfully");
       navigate("/manajemen-user");
     } catch (err) {
       console.error("Error updating user:", err);
+      toast.error("Failed to update user");
     }
   };
 
@@ -88,13 +100,13 @@ export default function EditUsers() {
     setRoleId(selectedRoleId);
     setUserData({}); // Reset user data when role changes
 
-    // Initialize user data based on selected role
+    // Initialize user data based on selected role, excluding password
     switch (selectedRoleId) {
       case 1: // Admin
-        setUserData({ email: user?.data.email || "", phone: user?.data.phone || "", office: user?.data.office || "", password: user?.data.password || "", department: user?.data.department || "" });
+        setUserData({ email: user?.data.email || "", phone: user?.data.phone || "", office: user?.data.office || "", department: user?.data.department || "" });
         break;
       case 2: // Kepala Sekolah
-        setUserData({ email: user?.data.email || "", password: user?.data.password || "" });
+        setUserData({ email: user?.data.email || "" });
         break;
       case 3: // Guru
         setUserData({ nip: user?.data.nip || "", id_class: user?.data.id_class || 0 });
@@ -103,7 +115,7 @@ export default function EditUsers() {
         setUserData({ nis: user?.data.nis || "", id_class: user?.data.id_class || 0 });
         break;
       case 5: // Operator
-        setUserData({ email: user?.data.email || "", password: user?.data.password || "" });
+        setUserData({ email: user?.data.email || "" });
         break;
       case 6: // Mahasiswa
         setUserData({ nim: user?.data.nim || "", id_class: user?.data.id_class || 0 });
@@ -304,8 +316,7 @@ export default function EditUsers() {
                         <Label htmlFor="nim">NIM</Label>
                         <Input
                           id="nim"
-                          value={userData.nim || ""
-                          }
+                          value={userData.nim || ""}
                           onChange={(e) => setUserData({ ...userData, nim: e.target.value })}
                         />
                       </div>

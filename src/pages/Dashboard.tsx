@@ -202,7 +202,7 @@ export default function Dashboard() {
         ] = await Promise.all([
           // Data agenda hari ini
           api.get(
-            `/api/academic/agendas?limit=1&sort=-createdAt&start_date=${todayFormatted}&end_date=${todayFormatted}`,
+            `/api/academic/agendas?limit=1&sort=-createdAt&start_date=${todayFormatted}`,
             config
           ),
 
@@ -248,6 +248,7 @@ export default function Dashboard() {
         console.log(monthlyLettersIncomingResponse.data.count);
         setTotalSuratMasuk(monthlyLettersIncomingResponse.data.count);
         setTotalSuratKeluar(monthlyLettersOutgoinponse.data.count);
+        console.log("yearlyLettersIncomingResponse: ", yearlyLettersIncomingResponse.data)
         setTotalSuratMasukYear(yearlyLettersIncomingResponse.data);
         setTotalSuratKeluarYear(yearlyLettersOutgoingResponse.data);
       } catch (error) {

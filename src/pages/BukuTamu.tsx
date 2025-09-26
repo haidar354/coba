@@ -612,7 +612,7 @@ const BukuTamu = () => {
                           <TableCell>
                             {guest.signature ? (
                               <img
-                                src={`https://website-sekolahku-be.up.railway.app/${guest.signature}`}
+                                src={`http://147.139.209.177/api/public/${guest.signature}`}
                                 alt="Signature"
                                 className="object-contain max-w-40 max-h-50"
                                 crossOrigin="anonymous"
@@ -746,7 +746,7 @@ const BukuTamu = () => {
                   <Label>Tanda Tangan</Label>
                   <div className="mt-2">
                     <img
-                      src={`https://website-sekolahku-be.up.railway.app/${selectedGuest.signature}`}
+                      src={`http://147.139.209.177/api/public/${selectedGuest.signature}`}
                       alt="Signature"
                       className="object-contain max-w-full max-h-48 border rounded"
                       crossOrigin="anonymous"

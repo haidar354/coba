@@ -851,7 +851,7 @@ export default function TahunAjaran() {
                               Aktif
                             </span>
                           ) : (
-                            <span className="text-gray-400 text-xs">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                               Tidak Aktif
                             </span>
                           )}

@@ -233,7 +233,7 @@ const DaftarSurvei = ({
                     onChange={(e) => handleChange("event_type", e.target.value)}
                   />
                   <label htmlFor="external" className="text-sm">
-                    Eksternal
+                    External
                   </label>
                 </div>
               </div>
@@ -573,7 +573,7 @@ export default function Agenda() {
   };
 
   const renderCalendarView = () => (
-    <div className="flex flex-col gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Left Sidebar */}
       <Card className="lg:col-span-1">
         <CardContent className="p-6">
@@ -586,6 +586,111 @@ export default function Agenda() {
               <Plus className="h-4 w-4" />
               Tambah Agenda
             </Button>
+
+            <div className="text-center text-muted-foreground">
+              <h3 className="font-medium mb-2">
+                {currentDate.toLocaleDateString("id-ID", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </h3>
+              <div className="grid grid-cols-7 gap-1 text-xs">
+                <div className="p-1">Sen</div>
+                <div className="p-1">Sel</div>
+                <div className="p-1">Rab</div>
+                <div className="p-1">Kam</div>
+                <div className="p-1">Jum</div>
+                <div className="p-1">Sab</div>
+                <div className="p-1">Min</div>
+
+                {/* Calendar days - mini version */}
+                {Array.from({ length: 42 }, (_, i) => {
+                  const firstDay = new Date(
+                    currentDate.getFullYear(),
+                    currentDate.getMonth(),
+                    1
+                  );
+                  const startOfWeek =
+                    firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+                  const dayNumber = i - startOfWeek + 1;
+                  const daysInMonth = new Date(
+                    currentDate.getFullYear(),
+                    currentDate.getMonth() + 1,
+                    0
+                  ).getDate();
+                  const isCurrentMonth =
+                    dayNumber > 0 && dayNumber <= daysInMonth;
+                  const isToday =
+                    isCurrentMonth &&
+                    dayNumber === new Date().getDate() &&
+                    currentDate.getMonth() === new Date().getMonth() &&
+                    currentDate.getFullYear() === new Date().getFullYear();
+
+                  return (
+                    <div
+                      key={i}
+                      className={`p-1 text-center ${
+                        isCurrentMonth
+                          ? isToday
+                            ? "bg-primary text-primary-foreground rounded"
+                            : "hover:bg-muted rounded"
+                          : "text-muted-foreground/50"
+                      }`}
+                    >
+                      {isCurrentMonth ? dayNumber : ""}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              {/* <h4 className="font-medium mb-3">Filter Agenda</h4>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="semua"
+                    checked={filters.semua}
+                    onCheckedChange={() => handleFilterChange("semua")}
+                  />
+                  <label
+                    htmlFor="semua"
+                    className="text-sm flex items-center gap-2"
+                  >
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    Semua
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="external"
+                    checked={filters.External}
+                    onCheckedChange={() => handleFilterChange("external")}
+                  />
+                  <label
+                    htmlFor="external"
+                    className="text-sm flex items-center gap-2"
+                  >
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    External
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="internal"
+                    checked={filters.Internal}
+                    onCheckedChange={() => handleFilterChange("internal")}
+                  />
+                  <label
+                    htmlFor="internal"
+                    className="text-sm flex items-center gap-2"
+                  >
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    Internal
+                  </label>
+                </div>
+              </div> */}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1189,7 +1294,7 @@ export default function Agenda() {
                               }
                             >
                               {item.event_type === "external"
-                                ? "Eksternal"
+                                ? "External"
                                 : "Internal"}
                             </Badge>
                           </TableCell>

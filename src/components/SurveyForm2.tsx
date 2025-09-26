@@ -82,7 +82,7 @@ const SurveyForm = ({ isOpen2, setIsOpen2, isOpen, setIsOpen, question }) => {
             Survei
           </h1>
           <p className="text-survey-subtitle text-sm leading-relaxed">
-            Dengan mengisi survei, Anda membantu kami meningkatkan kualitas
+            ABCDDDD, Anda membantu kami meningkatkan kualitas
             pendidikan di sekolah. Suara Anda sangat berarti bagi kami!
           </p>
         </div>

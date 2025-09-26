@@ -313,7 +313,7 @@ const DaftarSurvei = ({
             </label>
             <Input
               type="file"
-              accept=".word,.pdf,.jpg,.png"
+              accept=".word,.pdf,.jpg,.png, .doc, .docx, .txt"
               onChange={handleFileChange}
               className="mt-2"
             />
@@ -453,7 +453,7 @@ export default function KlasifikasiSurat() {
           recipient: formData.recipient,
           date_received: formData.date_received,
           date_sent: formData.date_sent,
-          file_path: response.data,
+          file_path: response.data.data[0],
         });
         alert("Data berhasil ditambahkan");
         setIsModalOpen(false);
@@ -753,7 +753,7 @@ export default function KlasifikasiSurat() {
   const handleDownloadFile = (item) => {
     // Create a temporary link element to trigger download
     const link = document.createElement("a");
-    link.href = `https://website-sekolahku-be.up.railway.app/public/${item.file_path}`;
+    link.href = `http://147.139.209.177/api/public/public/${item.file_path}`;
     link.download = "template_data_siswa.xlsx";
     link.target = "_blank";
 

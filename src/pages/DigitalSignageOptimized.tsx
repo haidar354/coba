@@ -176,31 +176,23 @@ const DigitalSignageOptimized = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // const dateNow = new Date().toISOString().split("T")[0];
-
-        const d = new Date();
-        d.setDate(d.getDate() - 1); // mundur 1 hari
-        const dateNow = d.toISOString().split("T")[0];
+        const dateNow = new Date().toISOString().split("T")[0];
         const response = await api.get(
           `/api/attendance/stats?start_date=${dateNow}&end_date=${dateNow}&id_role=4`
         );
         setDataSiswa(response.data);
-        return response.data;
       } catch (error) {
         console.error("Error fetching data:", error);
-        throw error;
       }
     };
+
     fetchData();
   }, []);
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // const dateNow = new Date().toISOString().split("T")[0];
+        const dateNow = new Date().toISOString().split("T")[0];
 
-        const d = new Date();
-        d.setDate(d.getDate() - 1); // mundur 1 hari
-        const dateNow = d.toISOString().split("T")[0];
         const response = await api.get(
           `/api/attendance/stats?start_date=${dateNow}&end_date=${dateNow}&id_role=3`
         );
@@ -265,11 +257,8 @@ const DigitalSignageOptimized = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // const dateNow = new Date().toISOString().split("T")[0];
+      const dateNow = new Date().toISOString().split("T")[0];
 
-      const d = new Date();
-      d.setDate(d.getDate() - 1); // mundur 1 hari
-      const dateNow = d.toISOString().split("T")[0];
       let data;
       try {
         const response = await api.get(
@@ -407,7 +396,7 @@ const DigitalSignageOptimized = () => {
     setTimeout(() => setIsTransitioning(false), 500);
   };
 
-  const handleCardClick = (text, typeCategory, type , info) => {
+  const handleCardClick = (text, typeCategory, type, info) => {
     setModalTitle("Detail Statistik");
     setModalText(text);
     setType(type);
@@ -522,7 +511,14 @@ const DigitalSignageOptimized = () => {
             {/* Controls for Digital Signage */}
             <div className="flex items-center gap-6">
               <div className="signage-text-base text-muted-foreground">
-                17 Sep 2025
+                {new Date(Date.now()).toLocaleDateString(
+                  "en-GB",
+                  {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  }
+                )}
               </div>
 
               {/* Auto slide indicator */}

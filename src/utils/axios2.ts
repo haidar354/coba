@@ -29,18 +29,16 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor for error handling
+// Assuming `api` is your Axios instance
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("user");
-      // Optionally redirect to login
-      // window.location.href = '/login';
+    if (error.response?.status === 401 && window.location.pathname !== "/tu/login") {
+      // Handle unauthorized access, but skip if already on /tu/login
+      localStorage.removeItem("token");
+      window.location.href = "/tu/login";
     }
     return Promise.reject(error);
   }
@@ -145,7 +143,7 @@ export const attendanceAPI = presensiGuruAPI;
 // Helper functions for common API operations (existing)
 export const agendaAPI = {
   // Get all agendas with optional filters
-  getAll: (params = {}) => api.get("/academic/agendas?limit=100", { params }),
+  getAll: (params = {}) => api.get(`/academic/agendas?${params}`),
 
   // Get agenda by ID
   getById: (id) => api.get(`/academic/agendas/${id}`),
@@ -168,7 +166,7 @@ export const authAPI = {
   login: (credentials) => api.post("/auth/login", credentials),
 
   // Register
-  register: (userData) => api.post("/auth/register", userData),
+  logout: () => api.post("/auth/logout"),
 
   // Get profile
   getProfile: () => api.get("/auth/profile"),

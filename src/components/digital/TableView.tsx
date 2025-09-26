@@ -44,11 +44,8 @@ const DaftarSurvei = ({ text, category, type, typeGet, info }) => {
       try {
         // Ambil token dari localStorage
         const token = localStorage.getItem("token");
-        // const dateNow = new Date().toISOString().split("T")[0];
+        const dateNow = new Date().toISOString().split("T")[0];
 
-        const d = new Date();
-        d.setDate(d.getDate() - 1); // mundur 1 hari
-        const dateNow = d.toISOString().split("T")[0];
         // Buat config untuk header authorization
         const config = {
           headers: {
@@ -74,11 +71,9 @@ const DaftarSurvei = ({ text, category, type, typeGet, info }) => {
     const fetchData = async () => {
       try {
         // Build query parameters
-        // const dateNow = new Date().toISOString().split("T")[0];
+        const dateNow = new Date().toISOString().split("T")[0];
 
-        const d = new Date();
-        d.setDate(d.getDate() - 1); // mundur 1 hari
-        const dateNow = d.toISOString().split("T")[0];
+
         let queryParams = `status=${status.toLowerCase()}&id_role=${
           typeGet === "siswa" ? "4" : "3"
         }&limit=60&start_date=${dateNow}&end_date=${dateNow}`;
@@ -94,6 +89,7 @@ const DaftarSurvei = ({ text, category, type, typeGet, info }) => {
         }
 
         const response = await api.get(`/api/attendance?${queryParams}`);
+
         setDataSiswa(response.data);
         return response.data;
       } catch (error) {

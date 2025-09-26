@@ -30,7 +30,7 @@ export const downloadExcel = async (
     const fileName = response.data.file;
     if (!fileName) throw new Error("File not found in response");
 
-    const downloadUrl = `https://website-sekolahku-be.up.railway.app/${fileName}`;
+    const downloadUrl = `http://147.139.209.177/api/public/${fileName}`;
 
     // Trigger browser download
     const link = document.createElement("a");
